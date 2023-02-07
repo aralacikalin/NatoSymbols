@@ -4,7 +4,7 @@ The generator can be used with following command
 ```
 python generate.py
 ```
-This produces one example and stores the image in images/train folder. To greate more examples than one, then run
+This produces one example and stores the image in images/train folder. To create more examples than one, then run
 ```
 python generate.py --examples_nr 10
 ```
