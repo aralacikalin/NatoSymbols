@@ -225,7 +225,7 @@ def main(
     unit_sizes = ['team', 'squad', 'half-platoon', 'platoon', 'company', #Currently repetition because unit sizes are sampled with uniform distirubution
                   'team', 'squad', 'half-platoon', 'platoon', 'company',
                   'squad', 'half-platoon', 'platoon', 'company',
-                  'battalion', 'brigade', 'regiment', 'division']
+                  'battalion']  #'brigade', 'regiment', 'division']
 
 ):
     # Read in the tactical symbols
