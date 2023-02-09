@@ -162,24 +162,18 @@ def cut_excess_white(symbol, excess_str = 120):
     symbol = symbol[:,np.argwhere(np.amin(symbol,axis=0) < excess_str)[0][0]:np.argwhere(np.amin(symbol,axis=0) < excess_str)[-1][0]]
     return symbol
 
+def read_in_labels(file):
+    labels_to_nr = {}
+    i = 0
+    with open(file) as f:
+        for line in f:
+            labels_to_nr[line.strip('\n')] = i
+            i += 1
+    return labels_to_nr
+
 # Get integer value of label
-def get_labels(data_labels):
-    data_labels[data_labels == "advance_to_contact"] = 0
-    data_labels[data_labels == "attack"] = 1
-    data_labels[data_labels == "block"] = 2
-    data_labels[data_labels == "counterattack"] = 3
-    data_labels[data_labels == "cover"] = 4
-    data_labels[data_labels == "delay"] = 5
-    data_labels[data_labels == "destroy"] = 6
-    data_labels[data_labels == "disrupt"] = 7
-    data_labels[data_labels == "guard"] = 8
-    data_labels[data_labels == "occupy"] = 9
-    data_labels[data_labels == "retain"] = 10
-    data_labels[data_labels == "screen"] = 11
-    data_labels[data_labels == "secure"] = 12
-    data_labels[data_labels == "seize"] = 13
-    data_labels[data_labels == "support_by_fire"] = 14
-    return data_labels
+def get_labels(label, labels_to_nr):
+    return labels_to_nr[label]
 
 # Return normalized value of cetner of box and dimensions of it.
 def get_locations(data_locations, dim0, dim1):
