@@ -6,6 +6,7 @@ block
 breach
 clear
 contain
+control
 counterattack
 cover
 delay
@@ -27,3 +28,4 @@ seize
 support_by_fire
 suppress
 turn
+withdraw
