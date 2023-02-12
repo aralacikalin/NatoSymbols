@@ -277,7 +277,7 @@ def main(
     labels_to_nr = read_in_labels('data/labels.txt')
 
     for i in range(len(data_labels)):
-        labels = get_labels(np.array(data_labels[i]), labels_to_nr)
+        labels = list(map(lambda label : get_labels(label, labels_to_nr), data_labels[i]))
         locations = get_locations(data_locations[i],dim[1],dim[0])
         with open(f'{save_labels_dir}/img{indices[i]}.txt', 'w') as f:
             for k, lab in enumerate(labels):
