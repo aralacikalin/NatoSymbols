@@ -6,13 +6,13 @@ import sys
 import cv2
 import numpy as np
 import imutils
-
+import glob
 def argParser():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--yoloText', type=str, help='path of the yolo output text')
-    parser.add_argument('--image', type=str, help='path of the image')
+    parser.add_argument('--labels', type=str, default="", help='path of the yolo output text')
+    parser.add_argument('--images', type=str,  help='path of the image')
     parser.add_argument('--classTemplates', type=str, help='path of the template of classes')
-    parser.add_argument('--useOriginalClassColors', type=int,default=0, help='path of the template of classes')
+    parser.add_argument('--useOriginalClassColors', type=int,default=1, help='using the orginal color of templates')
     opt = parser.parse_args()
     return opt
 
@@ -175,105 +175,118 @@ def VisualizeSymbol(symbolsImage,boundingBoxCoordinates,symbolRotation,symbolCla
 
 
 def main():
+
     opt=argParser()
-    imageName=os.path.basename(opt.yoloText)
-
-    yoloOutput=getYoloOutput(opt.yoloText)
-    yoloOutput=OrganizeYoloOutput(yoloOutput)
-    useOriginalClassColors=opt.useOriginalClassColors
-    image = cv2.imread(opt.image)
-
-    imageSize=image.shape
-
-    print(imageSize)
-    # exit()
-    # imageSize=(3472,4640)
-    # imageSize=(770,578)
-    imageSize=(imageSize[1],imageSize[0])
-    w,h=imageSize
-    symbolsImageOriginal=np.ones((h,w,3),dtype=np.uint8)
-    symbolsImageOriginal*=255
-    symbolsImage=np.ones((h,w),dtype=np.uint8)
-    symbolsImage*=255
+    imagesPath=opt.images
+    labelsPath=opt.labels
+    if(labelsPath==""):
+        labelsPath=imagesPath
+    
+    imagePaths=glob.glob(imagesPath+"/"+"*.jpg")
+    imagePaths+=glob.glob(imagesPath+"/"+"*.png")
+    
+    for imagePath in imagePaths:
 
 
-    # symbolsImage=cv2.bitwise_not(symbolsImage)
-    # cv2.imshow("Test",symbolsImage,)
-    # cv2.waitKey()
-    # cv2. destroyAllWindows()
+        imageName=os.path.basename(imagePath).split(".")[0]
+
+        yoloOutput=getYoloOutput(labelsPath+"/"+imageName+".txt")
+        yoloOutput=OrganizeYoloOutput(yoloOutput)
+        useOriginalClassColors=opt.useOriginalClassColors
+        image = cv2.imread(imagePath)
+
+        imageSize=image.shape
+
+        print(imageSize)
+        # exit()
+        # imageSize=(3472,4640)
+        # imageSize=(770,578)
+        imageSize=(imageSize[1],imageSize[0])
+        w,h=imageSize
+        symbolsImageOriginal=np.ones((h,w,3),dtype=np.uint8)
+        symbolsImageOriginal*=255
+        symbolsImage=np.ones((h,w),dtype=np.uint8)
+        symbolsImage*=255
 
 
-    classesImages,classesImagesRed=getClasses(opt.classTemplates)
+        # symbolsImage=cv2.bitwise_not(symbolsImage)
+        # cv2.imshow("Test",symbolsImage,)
+        # cv2.waitKey()
+        # cv2. destroyAllWindows()
 
-    for out in yoloOutput:
-        VisualizeSymbol(symbolsImage,out[1],out[2],out[0],classesImages,classesImagesRed,symbolsImageOriginal)
 
-#?if classes are not red and want a red overlay
-    if(not useOriginalClassColors):
+        classesImages,classesImagesRed=getClasses(opt.classTemplates)
 
-        redImage=symbolsImage.copy()
-        redImage=np.zeros((h,w,3),dtype=np.uint8)
-        # redImage=cv2.cvtColor(symbolsImage, cv2.COLOR_GRAY2RGB)
-        print(redImage.shape)
-        print(symbolsImage.shape)
+        for out in yoloOutput:
+            VisualizeSymbol(symbolsImage,out[1],out[2],out[0],classesImages,classesImagesRed,symbolsImageOriginal)
 
-        redImage[:,:,2]=cv2.bitwise_not(symbolsImage)
-        # redImage=cv2.bitwise_not(redImage)
-        blackPixels=np.where(cv2.bitwise_not(symbolsImage)!=0)
-    #     blackOnRed=np.where(
-    #     (redImage[:, :, 0] == 0) & 
-    #     (redImage[:, :, 1] == 0) & 
-    #     (redImage[:, :, 2] == 0)
-    # )
-    #     print(blackOnRed)
-    #     redImage[blackOnRed]=[255,255,255]
-        # cv2.imshow("redImage",redImage)
+    #?if classes are not red and want a red overlay
+        if(not useOriginalClassColors):
 
-        # redImage[blackPixels]=255
+            redImage=symbolsImage.copy()
+            redImage=np.zeros((h,w,3),dtype=np.uint8)
+            # redImage=cv2.cvtColor(symbolsImage, cv2.COLOR_GRAY2RGB)
+            print(redImage.shape)
+            print(symbolsImage.shape)
 
-        # image[cv2.bitwise_not(symbolsImage)>0]=0
-        # image += redImage*(cv2.bitwise_not(symbolsImage)>0)  
-        img_bg = cv2.bitwise_or(redImage, redImage, mask=cv2.bitwise_not(symbolsImage))
-        # img_fg = cv2.bitwise_or(image, image, mask=symbolsImage)
-        # image[:,:,2]=symbolsImage
-        # cv2.imshow("symbolsImage",cv2.bitwise_not(symbolsImage))
+            redImage[:,:,2]=cv2.bitwise_not(symbolsImage)
+            # redImage=cv2.bitwise_not(redImage)
+            blackPixels=np.where(cv2.bitwise_not(symbolsImage)!=0)
+        #     blackOnRed=np.where(
+        #     (redImage[:, :, 0] == 0) & 
+        #     (redImage[:, :, 1] == 0) & 
+        #     (redImage[:, :, 2] == 0)
+        # )
+        #     print(blackOnRed)
+        #     redImage[blackOnRed]=[255,255,255]
+            # cv2.imshow("redImage",redImage)
+
+            # redImage[blackPixels]=255
+
+            # image[cv2.bitwise_not(symbolsImage)>0]=0
+            # image += redImage*(cv2.bitwise_not(symbolsImage)>0)  
+            img_bg = cv2.bitwise_or(redImage, redImage, mask=cv2.bitwise_not(symbolsImage))
+            # img_fg = cv2.bitwise_or(image, image, mask=symbolsImage)
+            # image[:,:,2]=symbolsImage
+            # cv2.imshow("symbolsImage",cv2.bitwise_not(symbolsImage))
+            
+
+            image[blackPixels[0], blackPixels[1], :] = img_bg[blackPixels[0],blackPixels[1],:]
+            # image[blackPixels[0], blackPixels[1], :] = [0, 0, symbolsImage[blackPixels[0], blackPixels[1]]]
+            finalImg=cv2.add(image,img_bg)
+
+    #? if red classes are presented
+        else:
+            thresh_type = cv2.THRESH_BINARY
+
+
+            thresholdVal,_ = cv2.threshold(symbolsImage,0,255,thresh_type+cv2.THRESH_OTSU)
+            _,symbolsImage=cv2.threshold(symbolsImage,thresholdVal,255,thresh_type)
+            # cv2.imshow("symbolsImageOriginal",cv2.bitwise_not(symbolsImageOriginal))
+
+            img_bg = cv2.bitwise_and(symbolsImageOriginal, symbolsImageOriginal, mask=cv2.bitwise_not(symbolsImage))
+
+            img_fg = cv2.bitwise_and(image, image, mask=symbolsImage)
+            finalImg=cv2.add(img_bg,img_fg)
+
+        # cv2.imshow("img_bg",img_bg)
+        # cv2.imshow("img_fg",img_fg)
+        # cv2.imshow("finalImg",finalImg)
         
+        # cv2.waitKey()
+        # exit()
+        
+        if(not os.path.exists("./VisualizedDetections")):
+            os.mkdir("./VisualizedDetections")
 
-        image[blackPixels[0], blackPixels[1], :] = img_bg[blackPixels[0],blackPixels[1],:]
-        # image[blackPixels[0], blackPixels[1], :] = [0, 0, symbolsImage[blackPixels[0], blackPixels[1]]]
-        finalImg=cv2.add(image,img_bg)
-
-#? if red classes are presented
-    else:
-        thresh_type = cv2.THRESH_BINARY
-
-
-        thresholdVal,_ = cv2.threshold(symbolsImage,0,255,thresh_type+cv2.THRESH_OTSU)
-        _,symbolsImage=cv2.threshold(symbolsImage,thresholdVal,255,thresh_type)
-        # cv2.imshow("symbolsImageOriginal",cv2.bitwise_not(symbolsImageOriginal))
-
-        img_bg = cv2.bitwise_and(symbolsImageOriginal, symbolsImageOriginal, mask=cv2.bitwise_not(symbolsImage))
-
-        img_fg = cv2.bitwise_and(image, image, mask=symbolsImage)
-        finalImg=cv2.add(img_bg,img_fg)
-
-    # cv2.imshow("img_bg",img_bg)
-    # cv2.imshow("img_fg",img_fg)
-    # cv2.imshow("finalImg",finalImg)
-    
-    # cv2.waitKey()
-    # exit()
-    
-    if(not os.path.exists()):
-        os.mkdir("./VisualizedDetections")
-
-    cv2.imwrite(f"VisualizedDetections/{imageName}Visualization.png",finalImg)
-    cv2.imwrite(f"VisualizedDetections/{imageName}Visualization-original.png",symbolsImageOriginal)
-    # Test arguments: --yoloText D:\Workplace\Symbols\YOLO-Detection\yolo-output\exp3\labels\IMG_20221031_154620.txt --classTemplates ".\VisualizerClasses"
-    #? with new arguments
-    # Test arguments: --yoloText ./GeneratorFiles/GeneretedYoloLabels/yolo-img29.txt --image ./GeneratorFiles/imgs/img29.jpg --classTemplates .\VisualizerClassesOriginalRed\ --useOriginalClassColors 1
-    #! use these for demo
-    # Test arguments: D:/Miniconda3.7/envs/symbols3/python.exe ./SymbolVisualizer.py --yoloText .\example\examplefalseremoved.txt  --image .\example\example.jpg --classTemplates .\VisualizerClassesOriginalRed\ --useOriginalClassColors 1
+        cv2.imwrite(f"VisualizedDetections/{imageName}Visualization.png",finalImg)
+        print(f"Written to VisualizedDetections/{imageName}Visualization.png")
+        # cv2.imwrite(f"VisualizedDetections/{imageName}Visualization-original.png",symbolsImageOriginal)
+        # Test arguments: --yoloText D:\Workplace\Symbols\YOLO-Detection\yolo-output\exp3\labels\IMG_20221031_154620.txt --classTemplates ".\VisualizerClasses"
+        #? with new arguments
+        # Test arguments: --yoloText ./GeneratorFiles/GeneretedYoloLabels/yolo-img29.txt --image ./GeneratorFiles/imgs/img29.jpg --classTemplates .\VisualizerClassesOriginalRed\ --useOriginalClassColors 1
+        #! use these for demo
+        # Test arguments: D:/Miniconda3.7/envs/symbols3/python.exe ./SymbolVisualizer.py --yoloText .\example\examplefalseremoved.txt  --image .\example\example.jpg --classTemplates .\VisualizerClassesOriginalRed\ --useOriginalClassColors 1
         
 
 main()
