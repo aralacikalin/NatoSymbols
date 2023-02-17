@@ -1,3 +1,4 @@
+import glob
 import numpy as np
 import cv2
 from random import randint
@@ -7,6 +8,8 @@ import argparse
 from tqdm import tqdm #For progressbar
 from generate_unit_symbol import *
 from generator_utils import *
+import real_background_generation_utils as background_utils
+
 
 def generate_image(sample,
                    sample_units,
@@ -225,7 +228,9 @@ def main(
     unit_sizes = ['team', 'squad', 'half-platoon', 'platoon', 'company', #Currently repetition because unit sizes are sampled with uniform distirubution
                   'team', 'squad', 'half-platoon', 'platoon', 'company',
                   'squad', 'half-platoon', 'platoon', 'company',
-                  'battalion']  #'brigade', 'regiment', 'division']
+                  'battalion'],  #'brigade', 'regiment', 'division']
+    real_backgrounds_ratio=0.0,
+    real_backgrounds_dir="data/real_backgrounds"
 
 ):
     # Read in the tactical symbols
@@ -249,18 +254,38 @@ def main(
     data_locations = []
     data_rotations = []
     indices = []
+
+    # references for real background generation
+    backgroundImageList=background_utils.ProcessBackgrounds(real_backgrounds_dir)
+    
+
+    realBackgroundSampleCount=round(examples_nr*real_backgrounds_ratio)
+    realBackgroundSample=random.sample(range(examples_nr),realBackgroundSampleCount)
+
     for i in tqdm(range(examples_nr)):
         not_successful = True
         while not_successful:
             try:
                 scale = random.uniform(0.5,1.2)
-                img, loc, lab, rot, loc_units, lab_units  = generate_image(sample, sample_units,
-                                                                        sample_extras, scale, manuever_units,
-                                                                        support_units,
-                                                                        resizable,
-                                                                        resizable_horizontal,
-                                                                        resizable_vertical,
-                                                                        unit_sizes, dim, excess_str)
+                if(i in realBackgroundSample):
+                    canvas,boundingBoxesToRemove,background_dim=random.choice(backgroundImageList)
+                    canvas=canvas.copy()
+                    img, loc, lab, rot, loc_units, lab_units  = background_utils.generate_image_with_real_background(
+                                                                                        boundingBoxesToRemove,
+                                                                                        sample, 
+                                                                                        canvas, 
+                                                                                        background_dim,dim)
+                                        
+                else:
+                    img, loc, lab, rot, loc_units, lab_units  = generate_image(sample, sample_units,
+                                                                            sample_extras, scale, manuever_units,
+                                                                            support_units,
+                                                                            resizable,
+                                                                            resizable_horizontal,
+                                                                            resizable_vertical,
+                                                                            unit_sizes, dim, excess_str)
+                                    #Conversion to float is needed to use resize
+
                 #img[img<110] = 1
                 #img[img>=110] = 0
                 #Conversion to float is needed to use resize
@@ -305,6 +330,8 @@ def parse_opt():
     parser.add_argument('--save_images_dir', type=str, default='images/train', help='Directory where to store generated images')
     parser.add_argument('--save_labels_dir', type=str, default='labels/train', help='Directory where to store labels')
     parser.add_argument('--save_rotations_dir', type=str, default='rotations/train', help='Directory where to store rotations')
+    parser.add_argument('--real_backgrounds_ratio', type=float, default = 0.0, help='Ratio of data with real backgrounds')
+    parser.add_argument('--real_backgrounds_dir', type=str, default = "data/real_backgrounds", help='Directory in which the real data backgrounds are')
     opt = parser.parse_args()
     return opt
 
