@@ -266,7 +266,7 @@ def main(
     for i in tqdm(range(examples_nr)):
         not_successful = True
         while not_successful:
-            # try:
+            try:
                 scale = random.uniform(0.5,1.2)
                 if(i in realBackgroundSample):
                     canvas,boundingBoxesToRemove,background_dim=random.choice(backgroundImageList)
@@ -300,8 +300,8 @@ def main(
                 data_rotations.append(rot)
                 indices.append(i)
                 not_successful = False
-            # except:
-            #     continue
+            except:
+                continue
     
     labels_to_nr = read_in_labels('data/labels.txt')
 
