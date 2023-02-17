@@ -2,12 +2,74 @@
 import glob
 from generator_utils import *
 
+def rotateBoundingBoxes(boundingBoxesToRemove,dim):
+    height=dim[0]
+    width=dim[0]
+    newBoundingBoxes=[]
+    for point1,point2 in boundingBoxesToRemove:
+        x,y=point1
+        x1,y1=point2
+        newBoundingBoxes.append([[height-y1,x],[height-y,x1]])
+    return newBoundingBoxes
+
+def normalizePoints(boundingBoxesToRemove,dim,newDim):
+    newPoints=[]
+    imageW=dim[0]
+    imageH=dim[1]
+    newImageW=newDim[0]
+    newImageH=newDim[1]
+    for point1,point2 in boundingBoxesToRemove:
+        x,y=point1
+        x1,y1=point2
+        x,y,x1,y1=x/imageW,y/imageH,x1/imageW,y1/imageH
+        x,y,x1,y1=round(x*newImageW),round(y*newImageH),round(x1*newImageW),round(y1*newImageH)
+        newPoints.append([[x,y],[x1,y1]])
+    return newPoints
+
 
 
 def generate_image_with_real_background(boundingBoxesToRemove,sample,canvas,
-                   dim = (4624,3468)):
+                   dim,
+                   generator_dim=(4624,3468)):
     # canvas = np.full(dim, 255) #Size of final image
     canvas=canvas.copy()
+
+    # check if the background is portrait 
+    if(dim[0]/dim[1]>1.0):
+        #rotate background
+        canvas=cv2.rotate(canvas, cv2.ROTATE_90_CLOCKWISE)
+        boundingBoxesToRemove=rotateBoundingBoxes(boundingBoxesToRemove,dim)
+        
+    # check if background resolution is bigger than generator res 
+    if(dim[0]/dim[1]>generator_dim[1]/generator_dim[0]):
+        widthRatio=generator_dim[1]/dim[0]
+        heightRatio=generator_dim[0]/dim[1]
+        if(widthRatio<heightRatio):
+            canvas = cv2.resize(canvas, (int(round(canvas.shape[1]*widthRatio)),int(round(canvas.shape[0]*widthRatio))))
+        else:
+            canvas = cv2.resize(canvas, (int(round(canvas.shape[1]*heightRatio)),int(round(canvas.shape[0]*heightRatio))))
+        newDim=canvas.shape
+        dim=newDim
+        boundingBoxesToRemove=normalizePoints(boundingBoxesToRemove,dim,newDim)
+    
+    
+        
+    # add padding to the smaller side of the image
+    if(generator_dim[1]>dim[1] or generator_dim[0]>dim[0]):
+        paddingSizeWidth=generator_dim[1]-dim[1]
+        paddingSizeHeight=generator_dim[0]-dim[0]
+        # divide padding to both sides
+        paddingToSideWitdh=paddingSizeWidth//2
+        paddingToSideHeight=paddingSizeHeight//2
+        canvas=cv2.copyMakeBorder(canvas, paddingToSideHeight, paddingSizeHeight-paddingToSideHeight, paddingToSideWitdh, paddingSizeWidth-paddingToSideWitdh, cv2.BORDER_CONSTANT,value=(255,255,255))
+
+        newBoundingBoxPoints=[]
+        for point1,point2 in boundingBoxesToRemove:
+            x,y=point1
+            x1,y1=point2
+            newBoundingBoxPoints.append([[x+paddingToSideWitdh,y+paddingToSideHeight],[x1+paddingToSideWitdh,y1+paddingToSideHeight]])
+        boundingBoxesToRemove=newBoundingBoxPoints
+
     
     location_placement = []
     locations = [] #Store location of the symbols
@@ -111,6 +173,7 @@ def ProcessBackgrounds(backgroundPath):
         for boundingBox in boundingBoxesToRemove:
             startPoint=boundingBox[0]
             endPoint=boundingBox[1]
+            #TODO dont forget to enable!!!!!!!!
             removedLabelsImage=cv2.rectangle(removedLabelsImage, startPoint, endPoint, (255, 255, 255), -1)
 
         dim=(imageshape[0],imageshape[1])

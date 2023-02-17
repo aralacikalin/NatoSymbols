@@ -253,7 +253,6 @@ def main(
     data_labels = []
     data_locations = []
     data_rotations = []
-    image_dims=[]
     indices = []
 
     # references for real background generation
@@ -275,9 +274,7 @@ def main(
                                                                                         boundingBoxesToRemove,
                                                                                         sample, 
                                                                                         canvas, 
-                                                                                        background_dim)
-                    img = cv2.resize(img.astype('float32'), (background_dim[1],background_dim[0])).astype('int16')
-                    image_dims.append(background_dim)
+                                                                                        background_dim,dim)
                                         
                 else:
                     img, loc, lab, rot, loc_units, lab_units  = generate_image(sample, sample_units,
@@ -288,12 +285,11 @@ def main(
                                                                             resizable_vertical,
                                                                             unit_sizes, dim, excess_str)
                                     #Conversion to float is needed to use resize
-                    img = cv2.resize(img.astype('float32'), (save_dim[1],save_dim[0])).astype('int16')
-                    image_dims.append(dim)
 
                 #img[img<110] = 1
                 #img[img>=110] = 0
                 #Conversion to float is needed to use resize
+                img = cv2.resize(img.astype('float32'), (save_dim[1],save_dim[0])).astype('int16')
                 cv2.imwrite(f'{save_images_dir}/img{i}.jpg',img)
                 data_labels.append(lab)
                 data_locations.append(loc)
@@ -307,7 +303,6 @@ def main(
 
     for i in range(len(data_labels)):
         labels = list(map(lambda label : get_labels(label, labels_to_nr), data_labels[i]))
-        dim=image_dims[i]
         locations = get_locations(data_locations[i],dim[1],dim[0])
         with open(f'{save_labels_dir}/img{indices[i]}.txt', 'w') as f:
             for k, lab in enumerate(labels):
