@@ -7,6 +7,7 @@ import random
 from random import randint
 from scipy import ndimage
 from generate_unit_symbol import *
+import copy
 
 # Given top-left coorindate postion, places symbol on the canvas
 # Only places black pixels. Doesn't override already existing black pixels to white.
