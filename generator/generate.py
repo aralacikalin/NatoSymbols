@@ -92,17 +92,17 @@ def generate_image(sample,
     for task in range(randint(3,6)): # Nr of symbols on image
         label = sample_labels[randint(0,len(sample_labels)-1)]
         img = get_random(label, sample)
-        img_scale = random.uniform(0.8,1.2)
-        img = resize_by_scale(img, img_scale)
+        img_scale = random.uniform(0.7,1.0)
+        img = resize_by_scale(img, img_scale*0.8)
         
         #Insert unit symbol to screen, cover and guard.
         if label in ['screen', 'cover', 'guard']:
-            img, unit_lab = add_unit_symbol_in_middle(img, scale, sample_units, manuever_units,
+            img, unit_lab, rotation, point_1, point_2 = add_unit_symbol_in_middle(img, scale, sample_units, manuever_units,
                                             support_units, resizable, resizable_horizontal,
                                             resizable_vertical, unit_sizes)
-        
-        # Augment the image
-        img, rotation = augment(img, apply_rotation=True, apply_transformation=True, apply_boldness=True, scale_to_binary = True)
+        else:
+            # Augment the image
+            img, rotation = augment(img, apply_rotation=True, apply_transformation=True, apply_boldness=True)
         
         labels.append(label)
         rotations.append(rotation)
@@ -112,7 +112,10 @@ def generate_image(sample,
         point1, point2 = get_points(dim, img, locations, locations_units,location_placement)
         
         #We append upper left corner point and lower right corner point.
-        locations.append(((point1,point2),(point1+img.shape[0],point2+img.shape[1])))
+        if label in ['screen', 'cover', 'guard']:
+            locations.append(((point1+point_1[0],point2+point_1[0]),(point1+img.shape[0]+point_2[0],point2+img.shape[1]+point_2[1])))
+        else:
+            locations.append(((point1,point2),(point1+img.shape[0],point2+img.shape[1])))
         #If there is overlap we don't want to overwrite black pixels with white background.
         canvas = place_symbol(canvas, img, point1, point2)
         
@@ -205,8 +208,8 @@ def main(
     save_labels_dir = '',
     save_rotations_dir = '',
     manuever_units = ['infrantry',
-                     'anti_tank',
-                     'armour',],
+                        'anti_tank',
+                        'armour',],
     support_units = ['recce',
                     'medic',
                     'signal',
@@ -223,9 +226,9 @@ def main(
     resizable_horizontal = ['hq_unit','supply'],
     resizable_vertical = ['motorized', 'cannon'],
     unit_sizes = ['team', 'squad', 'half-platoon', 'platoon', 'company', #Currently repetition because unit sizes are sampled with uniform distirubution
-                  'team', 'squad', 'half-platoon', 'platoon', 'company',
-                  'squad', 'half-platoon', 'platoon', 'company',
-                  'battalion']  #'brigade', 'regiment', 'division']
+                    'team', 'squad', 'half-platoon', 'platoon', 'company',
+                    'squad', 'half-platoon', 'platoon', 'company',
+                    'battalion']  #'brigade', 'regiment', 'division']
 
 ):
     # Read in the tactical symbols

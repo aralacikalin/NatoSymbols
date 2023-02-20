@@ -215,10 +215,10 @@ def check_if_cap(img, check_left = True, excess_str = 120):
 def add_unit_symbol_in_middle(img, scale, sample_units, manuever_units,
                                             support_units, resizable, resizable_horizontal,
                                             resizable_vertical, unit_sizes):
-    #scale = random.uniform(1.1,1.3)
-    img = resize_by_scale(img, scale)
     #Cut excess white from edges
     img = cut_excess_white(img)
+
+    img, rotation = augment(img, apply_rotation=False, apply_transformation=True, apply_boldness=True, scale_to_binary=True)
 
     # Find if there is cap between arrow and letter S/C/G or not
     left = check_if_cap(img)
@@ -230,7 +230,7 @@ def add_unit_symbol_in_middle(img, scale, sample_units, manuever_units,
                                 resizable,resizable_horizontal,
                                 resizable_vertical,unit_sizes,False)
 
-    unit_symbol = resize_by_scale(unit_symbol, scale)
+    unit_symbol = resize_by_scale(unit_symbol, scale*0.7)
 
     if img.shape[0] < ceil(unit_symbol.shape[0]/2):
         shape1 = unit_symbol.shape[0]
@@ -238,17 +238,52 @@ def add_unit_symbol_in_middle(img, scale, sample_units, manuever_units,
         shape1 = ceil(unit_symbol.shape[0]/2) + img.shape[0]
 
     img2 = np.full([int(shape1),left+unit_symbol.shape[1]+(img.shape[1]-right) + 14], 255) #+14 is for the gap between arrows and unit symbol
-
+    
     # Place the unit symbol into middle
     img2 = place_symbol(img2, unit_symbol, 0, left+7)
+    img3 = copy.deepcopy(img2)
     # Place the left side of the screen/cover/guard
     img2 = place_symbol(img2, img[:,0:left], ceil(unit_symbol.shape[0]/2),0)
     # Place the right side of the screen/cover/guard
     img2 = place_symbol(img2, img[:,right:], ceil(unit_symbol.shape[0]/2), left+unit_symbol.shape[1]+14)
+    #img2 = img2.astype('float32')
+    
+    img3[img3 < 100] = 150
+    img3 = place_symbol(img3, img[:,0:left], ceil(unit_symbol.shape[0]/2),0)
+    img3 = place_symbol(img3, img[:,right:], ceil(unit_symbol.shape[0]/2), left+unit_symbol.shape[1]+14)
+    #img3 = img3.astype('float32')
+    
+    img2pad = np.pad(img2, ((600,600),(600,600)), "constant", constant_values=255)
+    img3pad = np.pad(img3, ((600,600),(600,600)), "constant", constant_values=255)
+    
+    rotation = randint(0,359)
+    img2_rotated = ndimage.rotate(img2pad, rotation, reshape=False, mode='constant',cval=255)
+    img3_rotated = ndimage.rotate(img3pad, rotation, reshape=False, mode='constant',cval=255)
+    
+    top1 = np.argwhere(np.amin(img3_rotated,axis=1) < 110)[0][0]
+    bottom1 = np.argwhere(np.amin(img3_rotated,axis=1) < 110)[-1][0]
+    left1 = np.argwhere(np.amin(img3_rotated,axis=0) < 110)[0][0]
+    right1 = np.argwhere(np.amin(img3_rotated,axis=0) < 110)[-1][0]
+    
+    top2 = np.argwhere(np.amin(img2_rotated,axis=1) < 110)[0][0]
+    bottom2 = np.argwhere(np.amin(img2_rotated,axis=1) < 110)[-1][0]
+    left2 = np.argwhere(np.amin(img2_rotated,axis=0) < 110)[0][0]
+    right2 = np.argwhere(np.amin(img2_rotated,axis=0) < 110)[-1][0]
+    
+    point1 = (top1-top2,left1-left2)
+    point2 = (bottom1-bottom2,right1-right2)
+    
+    img2_rotated = cut_excess_white(img2_rotated)
+    img3_rotated = cut_excess_white(img3_rotated)
 
-    img = img2.astype('float32') #OpenCV requires float32 type, cant work with int16
+    img2_float = img2_rotated.astype('float32') #OpenCV requires float32 type, cant work with int16
+    
+    return img2_float, unit_lab, rotation, point1, point2
 
-    return img, unit_lab
+def get_points_after_rotation(point, rotation):
+    x = point[1]*cos(radians(rotation))-point[0]*sin(radians(rotation))
+    y = point[1]*sin(radians(rotation))+point[0]*cos(radians(rotation))
+    return (y,x)
 
 def get_mortar_area_img(number, scale, sample_extras):
     mortar_img = get_random('mortar', sample_extras)
@@ -355,6 +390,8 @@ def augment(img, remove_excess = True, excess_str = 110, apply_flip = False,
         if rotation == None:
             rotation = randint(0,359)
         img = ndimage.rotate(img, rotation, mode='constant',cval=padding_val)
+    else:
+        rotation = 0
     if apply_transformation:
         #Add padding for affine transformation. Otherwise the picture might not be in bounds.
         img = np.pad(img, (1000, 1000), 'constant', constant_values=(padding_val, padding_val))
