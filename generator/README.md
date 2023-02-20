@@ -9,3 +9,8 @@ This produces one example and stores the image in images/train folder. To create
 python generate.py --examples_nr 10
 ```
 More info about the possible arguments can be found in generate.py.
+
+```
+python generate.py --examples_nr 10 --real_backgrounds_ratio 0.2
+```
+this produces 2 images out of 10 with real background
