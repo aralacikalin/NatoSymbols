@@ -116,7 +116,7 @@ def generate_image(sample,
         
         #We append upper left corner point and lower right corner point.
         if label in ['screen', 'cover', 'guard']:
-            locations.append(((point1+point_1[0],point2+point_1[0]),(point1+img.shape[0]+point_2[0],point2+img.shape[1]+point_2[1])))
+            locations.append(((point1+point_1[0],point2+point_1[1]),(point1+img.shape[0]+point_2[0],point2+img.shape[1]+point_2[1])))
         else:
             locations.append(((point1,point2),(point1+img.shape[0],point2+img.shape[1])))
         #If there is overlap we don't want to overwrite black pixels with white background.
