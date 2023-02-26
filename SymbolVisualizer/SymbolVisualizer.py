@@ -19,6 +19,7 @@ def argParser():
     parser.add_argument('--classTemplates', type=str, help='path of the template of classes')
     parser.add_argument('--useOriginalClassColors', type=int,default=1, help='using the orginal color of templates')
     parser.add_argument('--useTrajectory', type=bool, default=False, help="To use trajectory finding similarities or not")
+    parser.add_argument('--useDecoder', type=bool, default=False, help="use decoder or not")
     opt = parser.parse_args()
     return opt
 
@@ -186,8 +187,8 @@ def modelTrajectory():
     x = Conv2D(64, (3, 3), activation='relu', padding='same')(x)
     encoded = MaxPooling2D(pool_size=(2, 2), padding='same', name="encoded")(x)
     #decoder
-    x = Conv2D(64, (3, 3), activation='relu', padding='same')(encoded)
-    x = UpSampling2D((2, 2))(x)
+    decoder = Conv2D(64, (3, 3), activation='relu', padding='same', name="decoder")(encoded)
+    x = UpSampling2D((2, 2))(decoder)
     x = Conv2D(32, (3, 3), activation='relu', padding='same')(x)
     x = UpSampling2D((2, 2))(x)
     x = Conv2D(16, (3, 3), activation='relu', padding='same')(x)
@@ -225,6 +226,7 @@ class symbolViz:
             labelsPath=imagesPath
 
         bUseTrajectorySymbols = opt.useTrajectory
+        bUseDecoder = opt.useDecoder
 
         if bUseTrajectorySymbols:
             self.trajectoryModelsAndData()
@@ -264,7 +266,7 @@ class symbolViz:
             if bUseTrajectorySymbols:
                 for out in yoloOutput:
                     if out[0] in [0, 2, 9, 18]:
-                        self.VisualizeSymbolTrajectory(symbolsImage, out[1], out[2], out[0], symbolsImageOriginal, image, imageGray)
+                        self.VisualizeSymbolTrajectory(symbolsImage, out[1], out[2], out[0], symbolsImageOriginal, image, imageGray, bUseDecoder)
                     else:
                         VisualizeSymbol(symbolsImage,out[1],out[2],out[0],classesImages,classesImagesRed,symbolsImageOriginal)
 
@@ -340,7 +342,7 @@ class symbolViz:
             # Test arguments: D:/Miniconda3.7/envs/symbols3/python.exe ./SymbolVisualizer.py --yoloText .\example\examplefalseremoved.txt  --image .\example\example.jpg --classTemplates .\VisualizerClassesOriginalRed\ --useOriginalClassColors 1
 
 
-    def VisualizeSymbolTrajectory(self, symbolsImage, boundingBoxCoordinates, symbolRotation, symbolClass, symbolsImageOriginal, image, imageGray):
+    def VisualizeSymbolTrajectory(self, symbolsImage, boundingBoxCoordinates, symbolRotation, symbolClass, symbolsImageOriginal, image, imageGray, bDecoder):
         x, y, w, h = boundingBoxCoordinates
 
         symbolRotation = -symbolRotation
@@ -401,6 +403,30 @@ class symbolViz:
             features_reshape = load_features.reshape((-1, np.prod((load_features.shape[1:]))))
         else:
             print("error in trajectory class")
+
+        if bDecoder:
+            if symbolClass == 0:
+                decoder = Model(inputs=self.__advanceToContactModel.get_layer("decoder").input, outputs=self.__advanceToContactModel.output)
+                predicted_d = decoder.predict(predicted)
+                cv2.imshow("symbol", predicted_d[0])
+                cv2.waitKey()
+            elif symbolClass == 2:
+                decoder = Model(inputs=self.__attackModel.get_layer("decoder").input, outputs=self.__attackModel.output)
+                predicted_d = decoder.predict(predicted)
+                cv2.imshow("symbol", predicted_d[0])
+                cv2.waitKey()
+            elif symbolClass == 9:
+                decoder = Model(inputs=self.__counterattackModel.get_layer("decoder").input, outputs=self.__counterattackModel.output)
+                predicted_d = decoder.predict(predicted)
+                cv2.imshow("symbol", predicted_d[0])
+                cv2.waitKey()
+            elif symbolClass == 18:
+                decoder = Model(inputs=self.__mainAttackModel.get_layer("decoder").input, outputs=self.__mainAttackModel.output)
+                predicted_d = decoder.predict(predicted)
+                cv2.imshow("symbol", predicted_d[0])
+                cv2.waitKey()
+            else:
+                print("error in trajectory class")
 
         knn_cosine = NearestNeighbors(n_neighbors=1, metric="cosine")
         knn_cosine.fit(features_reshape)
