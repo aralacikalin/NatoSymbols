@@ -445,10 +445,10 @@ class symbolViz:
         self.__counterattackModel = modelTrajectory()
         self.__mainAttackModel = modelTrajectory()
 
-        self.__advanceToContactData = np.load("./trajectoryData/advance_to_contact_trajectory_data.npy", allow_pickle=True)
-        self.__attackData = np.load("./trajectoryData/attack_trajectory_data.npy", allow_pickle=True)
-        self.__counterattackData = np.load("./trajectoryData/counterattack_trajectory_data.npy", allow_pickle=True)
-        self.__mainAttackData = np.load("./trajectoryData/main_attack_trajectory_data.npy", allow_pickle=True)
+        self.__advanceToContactData = np.load("./trajectoryData/advance_to_contact_trajectory_data_2602.npy", allow_pickle=True)
+        self.__attackData = np.load("./trajectoryData/attack_trajectory_data_2602.npy", allow_pickle=True)
+        self.__counterattackData = np.load("./trajectoryData/counterattack_trajectory_data_2602.npy", allow_pickle=True)
+        self.__mainAttackData = np.load("./trajectoryData/main_attack_trajectory_data_2602.npy", allow_pickle=True)
 
 
 symbolViz().main()
