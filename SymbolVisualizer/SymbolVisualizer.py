@@ -370,7 +370,7 @@ class symbolViz:
         formatImage = formatImage.reshape(formatImage.shape[0], formatImage.shape[1], formatImage.shape[2], 1)
 
         if symbolClass == 0:
-            self.__advanceToContactModel.load_weights('./trajectoryModels/advance_to_contact_trajectory_autoencoder.h5')
+            self.__advanceToContactModel.load_weights('./trajectoryModels/advance_to_contact_trajectory_autoencoder_270223.h5')
             encoder = Model(inputs=self.__advanceToContactModel.input, outputs=self.__advanceToContactModel.get_layer("encoded").output)
             predicted = encoder.predict(formatImage)
 
@@ -378,7 +378,7 @@ class symbolViz:
             load_images = self.__advanceToContactData.item().get("images")
             features_reshape = load_features.reshape((-1, np.prod((load_features.shape[1:]))))
         elif symbolClass == 2:
-            self.__attackModel.load_weights('./trajectoryModels/attack_trajectory_autoencoder.h5')
+            self.__attackModel.load_weights('./trajectoryModels/attack_trajectory_autoencoder_270223.h5')
             encoder = Model(inputs=self.__attackModel.input, outputs=self.__attackModel.get_layer("encoded").output)
             predicted = encoder.predict(formatImage)
 
@@ -386,7 +386,7 @@ class symbolViz:
             load_images = self.__attackData.item().get("images")
             features_reshape = load_features.reshape((-1, np.prod((load_features.shape[1:]))))
         elif symbolClass == 9:
-            self.__counterattackModel.load_weights('./trajectoryModels/counterattack_trajectory_autoencoder.h5')
+            self.__counterattackModel.load_weights('./trajectoryModels/counterattack_trajectory_autoencoder_270223.h5')
             encoder = Model(inputs=self.__counterattackModel.input, outputs=self.__counterattackModel.get_layer("encoded").output)
             predicted = encoder.predict(formatImage)
 
@@ -394,7 +394,7 @@ class symbolViz:
             load_images = self.__counterattackData.item().get("images")
             features_reshape = load_features.reshape((-1, np.prod((load_features.shape[1:]))))
         elif symbolClass == 18:
-            self.__mainAttackModel.load_weights('./trajectoryModels/main_attack_trajectory_autoencoder.h5')
+            self.__mainAttackModel.load_weights('./trajectoryModels/main_attack_trajectory_autoencoder_270223.h5')
             encoder = Model(inputs=self.__mainAttackModel.input, outputs=self.__mainAttackModel.get_layer("encoded").output)
             predicted = encoder.predict(formatImage)
 
