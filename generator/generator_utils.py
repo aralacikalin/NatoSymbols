@@ -123,8 +123,9 @@ def check_overlap(point1,point2,locations, symbol_shape = (1,1),max_overlap=50):
     return is_overlap
 
 # Read the symbol images into dictionary
-def read_into_dic(directory, re_in):
-    output_dir = {}
+def read_into_dic(directory, re_in, output_dir = None):
+    if output_dir == None:
+        output_dir = {}
     for filename in os.listdir(directory+"/"):
         img = cv2.imread(directory+"/" + filename,0)
         img[img <= 100] = 0

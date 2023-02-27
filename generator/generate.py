@@ -237,7 +237,9 @@ def main(
 
 ):
     # Read in the tactical symbols
-    sample = read_into_dic(symbols_dir, symbols_regex)
+    sample = {}
+    for dir in os.listdir(symbols_dir):
+        sample = read_into_dic(f'{symbols_dir}/{dir}', symbols_regex, sample)
     
     # Read in the unit symbols
     sample_units = read_into_dic(unit_symbols_dir, units_regex)
