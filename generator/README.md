@@ -1,4 +1,4 @@
-This is a generator for generating training images with labels.
+This is a generator for generating training images with labels. The generator samples uniformly over the unique labels.
 
 The generator can be used with following command
 ```
