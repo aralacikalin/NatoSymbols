@@ -178,13 +178,13 @@ def get_labels(label, labels_to_nr):
     return labels_to_nr[label]
 
 # Return normalized value of cetner of box and dimensions of it.
-def get_locations(data_locations, dim0, dim1):
+def get_locations(data_locations, dim0, dim1, offset = 0):
     data_locations = np.array(data_locations)
     data_locations2 = np.zeros((data_locations.shape[0],4))
     data_locations2[:,2] = (data_locations[:,1,1] - data_locations[:,0,1])/dim0
     data_locations2[:,3] = (data_locations[:,1,0] - data_locations[:,0,0])/dim1
     data_locations2[:,0] = (data_locations[:,1,1] + data_locations[:,0,1])/(2*dim0)
-    data_locations2[:,1] = (data_locations[:,1,0] + data_locations[:,0,0])/(2*dim1)
+    data_locations2[:,1] = ((data_locations[:,1,0] + data_locations[:,0,0])/2 + offset) / dim1
     return data_locations2
 
 # Checks if screen, cover or guard there is cap between arrow and letter or not. If there is cap between them,
@@ -320,6 +320,12 @@ def get_exercise_text(scale, sample, language):
     length = 0
     if language == 'en':
         letters = ['e','x','e','r','c','i','s','e']
+        """
+        if randint(0,1) == 1:
+            letters = ['e','x','e','r','c','i','s','e']
+        else:
+            letters = ['e','x']
+        """
     else: #language == 'et'
         letters = ['oline','p','p','u','s']
     for letter in set(letters):

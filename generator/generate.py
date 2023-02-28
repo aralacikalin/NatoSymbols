@@ -197,8 +197,11 @@ def generate_image(sample,
     return canvas, locations, labels, rotations, locations_units, labels_units
 
 def main(
-    dim = (3468, 4624),
-    save_dim = (578,770),
+    dim_h = 3468,
+    dim_w = 4624,
+    save_dim_h = 578,
+    save_dim_w = 770,
+    save_as_square = False,
     examples_nr = 1,
     symbols_dir = 'data/symbols',
     unit_symbols_dir = 'data/unit_symbols',
@@ -234,8 +237,10 @@ def main(
                   'battalion'],  #'brigade', 'regiment', 'division']
     real_backgrounds_ratio=0.0,
     real_backgrounds_dir="data/real_backgrounds"
-
-):
+):  
+    
+    save_dim = (save_dim_h,save_dim_w)
+    dim = (dim_h,dim_w)
     # Read in the tactical symbols
     sample = {}
     for dir in os.listdir(symbols_dir):
@@ -294,7 +299,12 @@ def main(
                 #img[img<110] = 1
                 #img[img>=110] = 0
                 #Conversion to float is needed to use resize
-                img = cv2.resize(img.astype('float32'), (save_dim[1],save_dim[0])).astype('int16')
+                img = cv2.resize(img.astype('float32'), (int(save_dim[1]),int(save_dim[0]))).astype('int16')
+                offset = 0
+                if save_as_square:
+                    img2 = np.full((save_dim[1], save_dim[1]), 255)
+                    offset = int((save_dim[1]-save_dim[0])/2)
+                    img2 = place_symbol(img2,img,offset,0)
                 cv2.imwrite(f'{save_images_dir}/img{i}.jpg',img)
                 data_labels.append(lab)
                 data_locations.append(loc)
@@ -308,7 +318,7 @@ def main(
 
     for i in range(len(data_labels)):
         labels = list(map(lambda label : get_labels(label, labels_to_nr), data_labels[i]))
-        locations = get_locations(data_locations[i],dim[1],dim[0])
+        locations = get_locations(data_locations[i],dim[1],dim[0],offset)
         with open(f'{save_labels_dir}/img{indices[i]}.txt', 'w') as f:
             for k, lab in enumerate(labels):
                 if (k != len(labels)-1):
@@ -326,8 +336,11 @@ def main(
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dim', type=tuple, default = (3468,4624), help='The dimension which is being used during generating, should be same in which the symbols samples are taken')
-    parser.add_argument('--save_dim', type=tuple, default = (578,770), help='Dimesion in which the generated images are saved')
+    parser.add_argument('--dim_h', type=int, default = 3468, help='The dimension which is being used during generating, should be same in which the symbols samples are taken')
+    parser.add_argument('--dim_w', type=int, default = 4624, help='The dimension which is being used during generating, should be same in which the symbols samples are taken')
+    parser.add_argument('--save_dim_h', type=int, default = 578, help='Dimesion in which the generated images are saved')
+    parser.add_argument('--save_dim_w', type=int, default = 770, help='Dimesion in which the generated images are saved')
+    parser.add_argument('--save_as_square', type=bool, default = False, help='If the saved iamge hieght and width are equal. Uses save_dim[1] as dimension for both')
     parser.add_argument('--examples_nr', type=int, default = 1, help='Number of images to generate')
     parser.add_argument('--symbols_dir', type=str, default='data/symbols', help='Directory in which the sample of tactical tasks are')
     parser.add_argument('--unit_symbols_dir', type=str, default='data/unit_symbols', help='Directory in which the sample of unit symbols are')
