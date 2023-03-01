@@ -304,7 +304,7 @@ def main(
                 if save_as_square:
                     img2 = np.full((save_dim[1], save_dim[1]), 255)
                     offset = int((save_dim[1]-save_dim[0])/2)
-                    img2 = place_symbol(img2,img,offset,0)
+                    img = place_symbol(img2,img,offset,0)
                 cv2.imwrite(f'{save_images_dir}/img{i}.jpg',img)
                 data_labels.append(lab)
                 data_locations.append(loc)
