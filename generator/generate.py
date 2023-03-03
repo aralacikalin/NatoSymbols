@@ -98,14 +98,20 @@ def generate_image(sample,
     
     for task in range(randint(3,6)): # Nr of symbols on image
         label = sample_labels[randint(0,len(sample_labels)-1)]
+        img_scale = random.uniform(0.7,1.0)
         if random.uniform(0, 1) > real_symbols_ratio:
             img = get_random(label, sample)
             from_real_film = False
+            img = resize_by_scale(img, img_scale*0.8)
         else:
             try:
                 #There might not be sample from real film
                 imgClean,imgDirty = real_symbol_utils.get_random_pair(label, sample_real_Clean,sample_real)
                 from_real_film = True
+                imgClean = resize_by_scale(imgClean, 1.8)
+                imgDirty = resize_by_scale(imgDirty, 1.8)
+
+
                 # cv2.imshow("imgClean",imgClean)
                 # cv2.imshow("imgDirty",imgDirty)
                 # cv2.waitKey(0)
@@ -113,11 +119,7 @@ def generate_image(sample,
             except:
                 img = get_random(label, sample)
                 from_real_film = False
-        img_scale = random.uniform(0.7,1.0)
-        try:
-            img = resize_by_scale(img, img_scale*0.8)
-        except:
-            pass
+                img = resize_by_scale(img, img_scale*0.8)
 
 
 
