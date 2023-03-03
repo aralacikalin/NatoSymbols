@@ -9,10 +9,12 @@ from tqdm import tqdm #For progressbar
 from generate_unit_symbol import *
 from generator_utils import *
 import real_background_generation_utils as background_utils
+import real_symbol_utils
 
 
 def generate_image(sample,
                    sample_real,
+                   sample_real_Clean,
                    sample_units,
                    sample_extras,
                    scale,
@@ -102,14 +104,23 @@ def generate_image(sample,
         else:
             try:
                 #There might not be sample from real film
-                img = get_random(label, sample_real)
+                imgClean,imgDirty = real_symbol_utils.get_random_pair(label, sample_real_Clean,sample_real)
                 from_real_film = True
+                # cv2.imshow("imgClean",imgClean)
+                # cv2.imshow("imgDirty",imgDirty)
+                # cv2.waitKey(0)
+
             except:
                 img = get_random(label, sample)
                 from_real_film = False
         img_scale = random.uniform(0.7,1.0)
-        img = resize_by_scale(img, img_scale*0.8)
-        
+        try:
+            img = resize_by_scale(img, img_scale*0.8)
+        except:
+            pass
+
+
+
         if not from_real_film:
             #Insert unit symbol to screen, cover and guard.
             if label in ['screen', 'cover', 'guard']:
@@ -122,6 +133,7 @@ def generate_image(sample,
         else:
             #TODO Need to predefine rotations for real films.
             rotation = 0
+            img, rotation, point_1, point_2=real_symbol_utils.add_real_symbol(imgClean,imgDirty,scale)
         
         labels.append(label)
         rotations.append(rotation)
@@ -131,8 +143,13 @@ def generate_image(sample,
         point1, point2 = get_points(dim, img, locations, locations_units,location_placement)
         
         #We append upper left corner point and lower right corner point.
-        if label in ['screen', 'cover', 'guard']:
+        if label in ['screen', 'cover', 'guard'] or from_real_film:
             locations.append(((point1+point_1[0],point2+point_1[1]),(point1+img.shape[0]+point_2[0],point2+img.shape[1]+point_2[1])))
+        #     canvas =cv2.circle(canvas, (point1+point_1[0],point2+point_1[1]), radius=0, color=255, thickness=-1)
+        #     canvas = cv2.circle(canvas, (point1+img.shape[0]+point_2[0],point2+img.shape[1]+point_2[1]), radius=0, color=255, thickness=-1)
+        #     canvas=canvas.astype(np.uint8)
+        #     cv2.imshow("final image",canvas)
+        #     cv2.waitKey(0)
         else:
             locations.append(((point1,point2),(point1+img.shape[0],point2+img.shape[1])))
         #If there is overlap we don't want to overwrite black pixels with white background.
@@ -221,6 +238,7 @@ def main(
     examples_nr = 1,
     symbols_dir = 'data/symbols',
     real_symbols_dir = 'data/real_symbols',
+    real_symbols_clean_dir='data/real_clean_symbols',
     unit_symbols_dir = 'data/unit_symbols',
     extras_dir = 'data/extras',
     symbols_regex = '([a-zA-Z_ ]*)\d*.*',
@@ -266,7 +284,11 @@ def main(
 
     sample_real = {}
     for dir in os.listdir(real_symbols_dir):
-        sample_real = read_into_dic(f'{real_symbols_dir}/{dir}', symbols_regex, sample_real)
+        sample_real = real_symbol_utils.read_into_dic(f'{real_symbols_dir}/{dir}', symbols_regex, sample_real)
+
+    sample_real_Clean={}
+    for dir in os.listdir(real_symbols_clean_dir):
+        sample_real_Clean = real_symbol_utils.read_into_dic(f'{real_symbols_clean_dir}/{dir}', symbols_regex, sample_real_Clean)
     
     # Read in the unit symbols
     sample_units = read_into_dic(unit_symbols_dir, units_regex)
@@ -297,7 +319,7 @@ def main(
     for i in tqdm(range(examples_nr)):
         not_successful = True
         while not_successful:
-            try:
+            # try:
                 scale = random.uniform(0.5,1.2)
                 if(i in realBackgroundSample):
                     canvas,boundingBoxesToRemove,background_dim=random.choice(backgroundImageList)
@@ -309,7 +331,7 @@ def main(
                                                                                         background_dim,dim)
                                         
                 else:
-                    img, loc, lab, rot, loc_units, lab_units  = generate_image(sample, sample_real, sample_units,
+                    img, loc, lab, rot, loc_units, lab_units  = generate_image(sample, sample_real,sample_real_Clean, sample_units,
                                                                             sample_extras, scale, manuever_units,
                                                                             support_units,
                                                                             resizable,
@@ -333,8 +355,8 @@ def main(
                 data_rotations.append(rot)
                 indices.append(i)
                 not_successful = False
-            except:
-                continue
+            # except:
+            #     continue
     
     labels_to_nr = read_in_labels('data/labels.txt')
 
@@ -369,6 +391,7 @@ def parse_opt():
     parser.add_argument('--examples_nr', type=int, default = 1, help='Number of images to generate')
     parser.add_argument('--symbols_dir', type=str, default='data/symbols', help='Directory in which the sample of tactical tasks are')
     parser.add_argument('--real_symbols_dir', type=str, default='data/real_symbols', help='Directory in which the sample of tactical tasks cut from real films are')
+    parser.add_argument('--real_symbols_clean_dir', type=str, default='data/real_clean_symbols', help='Directory in which the sample of tactical tasks cut from real films are')
     parser.add_argument('--unit_symbols_dir', type=str, default='data/unit_symbols', help='Directory in which the sample of unit symbols are')
     parser.add_argument('--extras_dir', type=str, default='data/extras', help='Directory in which the sample of extras is')
     parser.add_argument('--save_images_dir', type=str, default='images/train', help='Directory where to store generated images')

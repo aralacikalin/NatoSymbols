@@ -1,5 +1,25 @@
 from generator_utils import *
 
+def get_random_pair(label, sampleClean,sampleDirty):
+    imgsClean = sampleClean[label]
+    imgsDirty = sampleDirty[label]
+    randomIndex=randint(0,len(imgsClean)-1)
+    return np.copy(imgsClean[randomIndex]),np.copy(imgsDirty[randomIndex])
+
+def read_into_dic(directory, re_in, output_dir = None):
+    if output_dir == None:
+        output_dir = {}
+    for filename in os.listdir(directory+"/"):
+        img = cv2.imread(directory+"/" + filename,0)
+        img[img <= 100] = 0
+        img[img > 100] = 255
+        key = re.findall(re_in, filename)[0]
+        if key in output_dir:
+            output_dir[key].append(img)
+        else:
+            output_dir[key] = [img]
+    return output_dir
+
 # Adds unit symbol in the middle of screen, cover and guard.
 def add_real_symbol(imgClean,imageDirty, scale ):
     #Cut excess white from edges
@@ -23,10 +43,14 @@ def add_real_symbol(imgClean,imageDirty, scale ):
     
     # imgClean = np.pad(imgClean, ((600,600),(600,600)), "constant", constant_values=255)
     # imageDirty = np.pad(imageDirty, ((600,600),(600,600)), "constant", constant_values=255)
+    imageDirty = np.pad(imageDirty, ((600,600),(600,600)), "constant", constant_values=255)
+    imgClean = np.pad(imgClean, ((600,600),(600,600)), "constant", constant_values=255)
     
     rotation = randint(0,359)
     imageDirtyRotated = ndimage.rotate(imageDirty, rotation, reshape=False, mode='constant',cval=255)
     imgCleanRotated = ndimage.rotate(imgClean, rotation, reshape=False, mode='constant',cval=255)
+
+
     
     top1 = np.argwhere(np.amin(imageDirtyRotated,axis=1) < 110)[0][0]
     bottom1 = np.argwhere(np.amin(imageDirtyRotated,axis=1) < 110)[-1][0]
@@ -38,14 +62,13 @@ def add_real_symbol(imgClean,imageDirty, scale ):
     left2 = np.argwhere(np.amin(imgCleanRotated,axis=0) < 110)[0][0]
     right2 = np.argwhere(np.amin(imgCleanRotated,axis=0) < 110)[-1][0]
     
-    point1 = (top1-top2,left1-left2)
-    point2 = (bottom1-bottom2,right1-right2)
+    point1 = (top2-top1,left2-left1)
+    point2 = (bottom2-bottom1,right2-right1)
     
     imageDirtyRotated = cut_excess_white(imageDirtyRotated)
     #img3_rotated = cut_excess_white(img3_rotated)
 
     img2_float = imageDirtyRotated.astype('float32') #OpenCV requires float32 type, cant work with int16
-    cleanrotated = imgCleanRotated.astype('float32') #OpenCV requires float32 type, cant work with int16
     
     return img2_float, rotation, point1, point2
 
