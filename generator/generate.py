@@ -318,7 +318,10 @@ def main(
 
     for i in range(len(data_labels)):
         labels = list(map(lambda label : get_labels(label, labels_to_nr), data_labels[i]))
-        locations = get_locations(data_locations[i],dim[1],dim[0],offset)
+        if save_as_square:
+            locations = get_locations(data_locations[i],dim[1],dim[1],offset)
+        else:
+            locations = get_locations(data_locations[i],dim[1],dim[0],offset)
         with open(f'{save_labels_dir}/img{indices[i]}.txt', 'w') as f:
             for k, lab in enumerate(labels):
                 if (k != len(labels)-1):
