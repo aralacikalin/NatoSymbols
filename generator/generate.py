@@ -12,6 +12,7 @@ import real_background_generation_utils as background_utils
 
 
 def generate_image(sample,
+                   sample_real,
                    sample_units,
                    sample_extras,
                    scale,
@@ -22,7 +23,8 @@ def generate_image(sample,
                    resizable_vertical,
                    unit_sizes,
                    dim = (3468, 4624),
-                   excess_str = 110):
+                   excess_str = 110,
+                   real_symbols_ratio = 0.0):
     canvas = np.full(dim, 255) #Size of final image
     
     location_placement = []
@@ -94,18 +96,32 @@ def generate_image(sample,
     
     for task in range(randint(3,6)): # Nr of symbols on image
         label = sample_labels[randint(0,len(sample_labels)-1)]
-        img = get_random(label, sample)
+        if random.uniform(0, 1) > real_symbols_ratio:
+            img = get_random(label, sample)
+            from_real_film = False
+        else:
+            try:
+                #There might not be sample from real film
+                img = get_random(label, sample_real)
+                from_real_film = True
+            except:
+                img = get_random(label, sample)
+                from_real_film = False
         img_scale = random.uniform(0.7,1.0)
         img = resize_by_scale(img, img_scale*0.8)
         
-        #Insert unit symbol to screen, cover and guard.
-        if label in ['screen', 'cover', 'guard']:
-            img, unit_lab, rotation, point_1, point_2 = add_unit_symbol_in_middle(img, scale, sample_units, manuever_units,
-                                            support_units, resizable, resizable_horizontal,
-                                            resizable_vertical, unit_sizes)
+        if not from_real_film:
+            #Insert unit symbol to screen, cover and guard.
+            if label in ['screen', 'cover', 'guard']:
+                img, unit_lab, rotation, point_1, point_2 = add_unit_symbol_in_middle(img, scale, sample_units, manuever_units,
+                                                support_units, resizable, resizable_horizontal,
+                                                resizable_vertical, unit_sizes)
+            else:
+                # Augment the image
+                img, rotation = augment(img, apply_rotation=True, apply_transformation=True, apply_boldness=True)
         else:
-            # Augment the image
-            img, rotation = augment(img, apply_rotation=True, apply_transformation=True, apply_boldness=True)
+            #TODO Need to predefine rotations for real films.
+            rotation = 0
         
         labels.append(label)
         rotations.append(rotation)
@@ -204,6 +220,7 @@ def main(
     save_as_square = False,
     examples_nr = 1,
     symbols_dir = 'data/symbols',
+    real_symbols_dir = 'data/real_symbols',
     unit_symbols_dir = 'data/unit_symbols',
     extras_dir = 'data/extras',
     symbols_regex = '([a-zA-Z_ ]*)\d*.*',
@@ -236,7 +253,8 @@ def main(
                   'squad', 'half-platoon', 'platoon', 'company',
                   'battalion'],  #'brigade', 'regiment', 'division']
     real_backgrounds_ratio=0.0,
-    real_backgrounds_dir="data/real_backgrounds"
+    real_backgrounds_dir="data/real_backgrounds",
+    real_symbols_ratio=0.0
 ):  
     
     save_dim = (save_dim_h,save_dim_w)
@@ -245,6 +263,10 @@ def main(
     sample = {}
     for dir in os.listdir(symbols_dir):
         sample = read_into_dic(f'{symbols_dir}/{dir}', symbols_regex, sample)
+
+    sample_real = {}
+    for dir in os.listdir(real_symbols_dir):
+        sample_real = read_into_dic(f'{real_symbols_dir}/{dir}', symbols_regex, sample_real)
     
     # Read in the unit symbols
     sample_units = read_into_dic(unit_symbols_dir, units_regex)
@@ -287,13 +309,13 @@ def main(
                                                                                         background_dim,dim)
                                         
                 else:
-                    img, loc, lab, rot, loc_units, lab_units  = generate_image(sample, sample_units,
+                    img, loc, lab, rot, loc_units, lab_units  = generate_image(sample, sample_real, sample_units,
                                                                             sample_extras, scale, manuever_units,
                                                                             support_units,
                                                                             resizable,
                                                                             resizable_horizontal,
                                                                             resizable_vertical,
-                                                                            unit_sizes, dim, excess_str)
+                                                                            unit_sizes, dim, excess_str, real_symbols_ratio)
                                     #Conversion to float is needed to use resize
 
                 #img[img<110] = 1
@@ -346,6 +368,7 @@ def parse_opt():
     parser.add_argument('--save_as_square', type=bool, default = False, help='If the saved iamge hieght and width are equal. Uses save_dim[1] as dimension for both')
     parser.add_argument('--examples_nr', type=int, default = 1, help='Number of images to generate')
     parser.add_argument('--symbols_dir', type=str, default='data/symbols', help='Directory in which the sample of tactical tasks are')
+    parser.add_argument('--real_symbols_dir', type=str, default='data/real_symbols', help='Directory in which the sample of tactical tasks cut from real films are')
     parser.add_argument('--unit_symbols_dir', type=str, default='data/unit_symbols', help='Directory in which the sample of unit symbols are')
     parser.add_argument('--extras_dir', type=str, default='data/extras', help='Directory in which the sample of extras is')
     parser.add_argument('--save_images_dir', type=str, default='images/train', help='Directory where to store generated images')
@@ -353,6 +376,7 @@ def parse_opt():
     parser.add_argument('--save_rotations_dir', type=str, default='rotations/train', help='Directory where to store rotations')
     parser.add_argument('--real_backgrounds_ratio', type=float, default = 0.0, help='Ratio of data with real backgrounds')
     parser.add_argument('--real_backgrounds_dir', type=str, default = "data/real_backgrounds", help='Directory in which the real data backgrounds are')
+    parser.add_argument('--real_symbols_ratio', type=float, default = 0.0, help="Ratio of real symbols cut from film")
     opt = parser.parse_args()
     return opt
 
