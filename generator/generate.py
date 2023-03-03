@@ -96,19 +96,21 @@ def generate_image(sample,
     
     for task in range(randint(3,6)): # Nr of symbols on image
         label = sample_labels[randint(0,len(sample_labels)-1)]
+        img_scale = random.uniform(0.7,1.0)
         if random.uniform(0, 1) > real_symbols_ratio:
             img = get_random(label, sample)
             from_real_film = False
+            img = resize_by_scale(img, img_scale*0.8)
         else:
             try:
                 #There might not be sample from real film
                 img = get_random(label, sample_real)
                 from_real_film = True
+                img = resize_by_scale(img, 1.8)
             except:
                 img = get_random(label, sample)
                 from_real_film = False
-        img_scale = random.uniform(0.7,1.0)
-        img = resize_by_scale(img, img_scale*0.8)
+                img = resize_by_scale(img, img_scale*0.8)
         
         if not from_real_film:
             #Insert unit symbol to screen, cover and guard.
