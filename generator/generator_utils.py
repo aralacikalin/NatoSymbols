@@ -276,7 +276,7 @@ def add_unit_symbol_in_middle(img, scale, sample_units, manuever_units,
     point2 = (bottom1-bottom2,right1-right2)
     
     img2_rotated = cut_excess_white(img2_rotated)
-    img3_rotated = cut_excess_white(img3_rotated)
+    #img3_rotated = cut_excess_white(img3_rotated)
 
     img2_float = img2_rotated.astype('float32') #OpenCV requires float32 type, cant work with int16
     
