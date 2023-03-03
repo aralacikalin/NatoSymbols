@@ -376,6 +376,7 @@ def parse_opt():
     parser.add_argument('--save_rotations_dir', type=str, default='rotations/train', help='Directory where to store rotations')
     parser.add_argument('--real_backgrounds_ratio', type=float, default = 0.0, help='Ratio of data with real backgrounds')
     parser.add_argument('--real_backgrounds_dir', type=str, default = "data/real_backgrounds", help='Directory in which the real data backgrounds are')
+    parser.add_argument('--real_symbols_ratio', type=float, default = 0.0, help="Ratio of real symbols cut from film")
     opt = parser.parse_args()
     return opt
 
