@@ -1,4 +1,4 @@
 Run rotationPrediction.py
 
-Images in ../data/images and labels in ../data/labels
+Images in ./images and labels in ./labels
 

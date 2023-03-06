@@ -16,8 +16,8 @@ def main():
 
     model = modelCNN()
 
-    images = '../data/images/'
-    labels = '../data/labels/'
+    images = './images/'
+    labels = './labels/'
     viz_images = '../SymbolVisualizer/images/'
     viz_labels = '../SymbolVisualizer/labels/'
     file_list = os.listdir(images)
