@@ -43,8 +43,11 @@ def add_real_symbol(imgClean,imageDirty, scale ):
     
     # imgClean = np.pad(imgClean, ((600,600),(600,600)), "constant", constant_values=255)
     # imageDirty = np.pad(imageDirty, ((600,600),(600,600)), "constant", constant_values=255)
-    imageDirty = np.pad(imageDirty, ((600,600),(600,600)), "constant", constant_values=255)
-    imgClean = np.pad(imgClean, ((600,600),(600,600)), "constant", constant_values=255)
+    # imageDirty = np.pad(imageDirty, ((300,300),(300,300)), "constant", constant_values=255)
+    # imgClean = np.pad(imgClean, ((300,300),(300,300)), "constant", constant_values=255)
+    imageDirty=cv2.copyMakeBorder(imageDirty, 300, 300, 300, 300, cv2.BORDER_CONSTANT,value=255)
+    imgClean=cv2.copyMakeBorder(imgClean, 300, 300, 300, 300, cv2.BORDER_CONSTANT,value=255)
+
     
     rotation = randint(0,359)
     imageDirtyRotated = ndimage.rotate(imageDirty, rotation, reshape=False, mode='constant',cval=255)

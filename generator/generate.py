@@ -104,7 +104,7 @@ def generate_image(sample,
             from_real_film = False
             img = resize_by_scale(img, img_scale*0.8)
         else:
-            try:
+            if(label in sample_real_Clean):
                 #There might not be sample from real film
                 imgClean,imgDirty = real_symbol_utils.get_random_pair(label, sample_real_Clean,sample_real)
                 from_real_film = True
@@ -116,7 +116,7 @@ def generate_image(sample,
                 # cv2.imshow("imgDirty",imgDirty)
                 # cv2.waitKey(0)
 
-            except:
+            else:
                 img = get_random(label, sample)
                 from_real_film = False
                 img = resize_by_scale(img, img_scale*0.8)
@@ -321,7 +321,7 @@ def main(
     for i in tqdm(range(examples_nr)):
         not_successful = True
         while not_successful:
-            # try:
+            try:
                 scale = random.uniform(0.5,1.2)
                 if(i in realBackgroundSample):
                     canvas,boundingBoxesToRemove,background_dim=random.choice(backgroundImageList)
@@ -357,10 +357,10 @@ def main(
                 data_rotations.append(rot)
                 indices.append(i)
                 not_successful = False
-            # except:
-            #     continue
+            except:
+                continue
     
-    labels_to_nr = read_in_labels('data/labels.txt')
+    labels_to_nr = read_in_labels('/gpfs/space/home/aral/symbols/NatoSymbols/generator/data/labels.txt')
 
     for i in range(len(data_labels)):
         labels = list(map(lambda label : get_labels(label, labels_to_nr), data_labels[i]))

@@ -19,6 +19,8 @@ def place_symbol(canvas, symbol, point1, point2):
 # Takes into account the allowed overlap
 def get_points(dim, symbol, locations, locations_units,location_placement):
     is_overlap = True
+    i=0
+
     while(is_overlap):
         overlap = False
         #Get the random location on canvas
@@ -28,6 +30,9 @@ def get_points(dim, symbol, locations, locations_units,location_placement):
                   check_overlap(point1,point2,locations_units,symbol.shape) or
                   check_overlap(point1,point2,location_placement,symbol.shape))
 
+        i+=1
+        if(i>=100):
+            break
         if not overlap:
             is_overlap = False
     
@@ -76,6 +81,7 @@ def draw_line(canvas, point1, point2, rotation, side, img):
         max_lengths[1,:] = max_lengths[1,:] + (prev_point-new_point)
         if (max_lengths[0,0] > 0 and max_lengths[0,1] > 0 and max_lengths[1,0] < 0 and max_lengths[1,1] < 0):
             break
+        canvas = canvas.astype(np.uint8).copy()
         cv2.line(canvas, (prev_point[1],prev_point[0]), (new_point[1],new_point[0]), 0, 9)
         prev_point = new_point
         rotation = rotation+randint(-20,20)
