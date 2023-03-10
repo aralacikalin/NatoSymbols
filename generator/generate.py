@@ -107,6 +107,8 @@ def generate_image(sample,
                 img = get_random(label, sample_real)
                 from_real_film = True
                 img = resize_by_scale(img, 1.8)
+                rotation = randint(0,3)*90
+                img = rotate_img(img,rotation)
             except:
                 img = get_random(label, sample)
                 from_real_film = False
@@ -115,15 +117,17 @@ def generate_image(sample,
         if not from_real_film:
             #Insert unit symbol to screen, cover and guard.
             if label in ['screen', 'cover', 'guard']:
-                img, unit_lab, rotation, point_1, point_2 = add_unit_symbol_in_middle(img, scale, sample_units, manuever_units,
-                                                support_units, resizable, resizable_horizontal,
-                                                resizable_vertical, unit_sizes)
+                if random.uniform(0,1) > 0.5:
+                    img, unit_lab, rotation, point_1, point_2 = add_unit_symbol_in_middle(img, scale, sample_units, manuever_units,
+                                                    support_units, resizable, resizable_horizontal,
+                                                    resizable_vertical, unit_sizes)
+                else:
+                    img, rotation = augment(img, apply_rotation=True, apply_transformation=True, apply_boldness=True)
+                    point_1 = (0,0)
+                    point_2 = (0,0)
             else:
                 # Augment the image
                 img, rotation = augment(img, apply_rotation=True, apply_transformation=True, apply_boldness=True)
-        else:
-            #TODO Need to predefine rotations for real films.
-            rotation = 0
         
         labels.append(label)
         rotations.append(rotation)
@@ -324,7 +328,6 @@ def main(
                 #img[img>=110] = 0
                 #Conversion to float is needed to use resize
                 img = cv2.resize(img.astype('float32'), (int(save_dim[1]),int(save_dim[0]))).astype('int16')
-                offset = 0
                 if save_as_square:
                     img2 = np.full((save_dim[1], save_dim[1]), 255)
                     offset = int((save_dim[1]-save_dim[0])/2)
@@ -340,12 +343,14 @@ def main(
     
     labels_to_nr = read_in_labels('data/labels.txt')
 
+    if save_as_square:
+        offset = int((save_dim[1]-save_dim[0])/2)
+    else:
+        offset = 0
+
     for i in range(len(data_labels)):
         labels = list(map(lambda label : get_labels(label, labels_to_nr), data_labels[i]))
-        if save_as_square:
-            locations = get_locations(data_locations[i],dim[1],dim[1],offset)
-        else:
-            locations = get_locations(data_locations[i],dim[1],dim[0],offset)
+        locations = get_locations(data_locations[i],dim[1],dim[0],offset)
         with open(f'{save_labels_dir}/img{indices[i]}.txt', 'w') as f:
             for k, lab in enumerate(labels):
                 if (k != len(labels)-1):
