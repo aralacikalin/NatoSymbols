@@ -114,6 +114,8 @@ def generate_image(sample,
                 from_real_film = False
                 img = resize_by_scale(img, img_scale*0.8)
         
+        point_1 = (0,0)
+        point_2 = (0,0)
         if not from_real_film:
             #Insert unit symbol to screen, cover and guard.
             if label in ['screen', 'cover', 'guard']:
@@ -123,24 +125,23 @@ def generate_image(sample,
                                                     resizable_vertical, unit_sizes)
                 else:
                     img, rotation = augment(img, apply_rotation=True, apply_transformation=True, apply_boldness=True)
-                    point_1 = (0,0)
-                    point_2 = (0,0)
             else:
                 # Augment the image
                 img, rotation = augment(img, apply_rotation=True, apply_transformation=True, apply_boldness=True)
         
+        #Check if there is overlap with current symbols.
+        #If there is overlap the generate new locations and check again.
+        try:
+            point1, point2 = get_points(dim, img, locations, locations_units,location_placement)
+        except:
+            continue
+
         labels.append(label)
         rotations.append(rotation)
         
-        #Check if there is overlap with current symbols.
-        #If there is overlap the generate new locations and check again.
-        point1, point2 = get_points(dim, img, locations, locations_units,location_placement)
-        
         #We append upper left corner point and lower right corner point.
-        if label in ['screen', 'cover', 'guard']:
-            locations.append(((point1+point_1[0],point2+point_1[1]),(point1+img.shape[0]+point_2[0],point2+img.shape[1]+point_2[1])))
-        else:
-            locations.append(((point1,point2),(point1+img.shape[0],point2+img.shape[1])))
+        locations.append(((point1+point_1[0],point2+point_1[1]),(point1+img.shape[0]+point_2[0],point2+img.shape[1]+point_2[1])))
+        
         #If there is overlap we don't want to overwrite black pixels with white background.
         canvas = place_symbol(canvas, img, point1, point2)
         

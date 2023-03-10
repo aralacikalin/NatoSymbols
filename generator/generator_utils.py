@@ -19,6 +19,7 @@ def place_symbol(canvas, symbol, point1, point2):
 # Takes into account the allowed overlap
 def get_points(dim, symbol, locations, locations_units,location_placement):
     is_overlap = True
+    counter = 0
     while(is_overlap):
         overlap = False
         #Get the random location on canvas
@@ -30,6 +31,10 @@ def get_points(dim, symbol, locations, locations_units,location_placement):
 
         if not overlap:
             is_overlap = False
+        
+        counter+=1
+        if counter > 50:
+            raise Exception("No place found")
     
     return point1, point2
 
