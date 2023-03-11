@@ -386,7 +386,7 @@ def place_exercise_text(canvas, scale, sample, language = None):
 
     return canvas
 
-def invert(img):
+def invert(imgm binary_threshold=110):
     loc = img <= binary_threshold
     img[img > binary_threshold] = 0
     img[loc] = 255
