@@ -8,16 +8,21 @@ def main(labels_in_dir,
          labels_to_combine,
          shift = False):
 
+    #Read in the the dictionaries which transforms string labels to numerical
     labels_to_nr = read_in_labels('data/labels.txt')
 
+    #Check if the path ends with "/"
     labels_in_dir = check_dir(labels_in_dir)
     labels_out_dir = check_dir(labels_out_dir)
 
+    #If save path does not exists create new
     if not os.path.exists(labels_out_dir):
         os.makedirs(labels_out_dir)
 
+    #Get the transformation directory
     transform, shift_loc = read_in_combine(labels_to_combine, labels_to_nr, True)
 
+    #If we want to shift other labels then add these to transformation as well
     if shift:
         transform = fill_missing(transform,labels_to_nr,shift_loc)
 
