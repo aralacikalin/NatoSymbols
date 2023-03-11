@@ -225,6 +225,7 @@ def main(
     save_dim_h = 578,
     save_dim_w = 770,
     save_as_square = False,
+    save_as_inverse = False,
     examples_nr = 1,
     symbols_dir = 'data/symbols',
     real_symbols_dir = 'data/real_symbols',
@@ -333,6 +334,8 @@ def main(
                     img2 = np.full((save_dim[1], save_dim[1]), 255)
                     offset = int((save_dim[1]-save_dim[0])/2)
                     img = place_symbol(img2,img,offset,0)
+                if save_as_inverse:
+                    img = invert(img)
                 cv2.imwrite(f'{save_images_dir}/img{i}.jpg',img)
                 data_labels.append(lab)
                 data_locations.append(loc)
@@ -374,6 +377,7 @@ def parse_opt():
     parser.add_argument('--save_dim_h', type=int, default = 578, help='Dimesion in which the generated images are saved')
     parser.add_argument('--save_dim_w', type=int, default = 770, help='Dimesion in which the generated images are saved')
     parser.add_argument('--save_as_square', type=bool, default = False, help='If the saved iamge hieght and width are equal. Uses save_dim[1] as dimension for both')
+    parser.add_argument('--save_as_inverse', type=bool, default = False, help='Switches black and white pixels when saving')
     parser.add_argument('--examples_nr', type=int, default = 1, help='Number of images to generate')
     parser.add_argument('--symbols_dir', type=str, default='data/symbols', help='Directory in which the sample of tactical tasks are')
     parser.add_argument('--real_symbols_dir', type=str, default='data/real_symbols', help='Directory in which the sample of tactical tasks cut from real films are')
