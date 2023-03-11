@@ -363,7 +363,7 @@ def main(
                     f.write(f'{lab} {locations[k,0]} {locations[k,1]} {locations[k,2]} {locations[k,3]}')
     
     for i in range(len(data_rotations)):
-        with open(f'{save_rotations_dir}/img{indices[i]}.txt') as f:
+        with open(f'{save_rotations_dir}/img{indices[i]}.txt','w') as f:
             for k, rot in enumerate(data_rotations[i]):
                 if (k != len(data_rotations[i])-1):
                     f.write(f'{rot}\n')
