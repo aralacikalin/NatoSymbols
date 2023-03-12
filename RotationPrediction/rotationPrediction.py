@@ -72,7 +72,7 @@ def modelCNN():
     x = Flatten()(x)
     x = Dense(classes, activation='softmax')(x)
 
-    model = Model(inputs=input_, outputs=x)
+    model = Model(inputs=input, outputs=x)
 
     return model
 
