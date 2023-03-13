@@ -140,15 +140,11 @@ def generate_image(sample,
             rotation = 0
             img, rotation, point_1, point_2=real_symbol_utils.add_real_symbol(imgClean,imgDirty,scale)
         
-        labels.append(label)
-        rotations.append(rotation)
-        
+
         #Check if there is overlap with current symbols.
         #If there is overlap the generate new locations and check again.
-        try:
-            point1, point2 = get_points(dim, img, locations, locations_units,location_placement)
-        except:
-            continue
+        point1, point2 = get_points(dim, img, locations, locations_units,location_placement)
+
 
         labels.append(label)
         rotations.append(rotation)
@@ -364,7 +360,7 @@ def main(
             except:
                 continue
     
-    labels_to_nr = read_in_labels('/gpfs/space/home/aral/symbols/NatoSymbols/generator/data/labels.txt')
+    labels_to_nr = read_in_labels('./data/labels.txt')
 
     if save_as_square:
         offset = int((save_dim[1]-save_dim[0])/2)
