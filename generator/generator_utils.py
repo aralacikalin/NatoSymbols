@@ -35,6 +35,7 @@ def get_points(dim, symbol, locations, locations_units,location_placement):
             break
         if not overlap:
             is_overlap = False
+        
     
     return point1, point2
 
@@ -219,6 +220,10 @@ def check_if_cap(img, check_left = True, excess_str = 120):
                 break
     return val
 
+def rotate_img(img, rotation,padding_val=255):
+    img_rotated = ndimage.rotate(img, rotation, mode='constant',cval=padding_val)
+    return img_rotated
+
 # Adds unit symbol in the middle of screen, cover and guard.
 def add_unit_symbol_in_middle(img, scale, sample_units, manuever_units,
                                             support_units, resizable, resizable_horizontal,
@@ -383,6 +388,12 @@ def place_exercise_text(canvas, scale, sample, language = None):
 
     return canvas
 
+def invert(img, binary_threshold=110):
+    loc = img <= binary_threshold
+    img[img > binary_threshold] = 0
+    img[loc] = 255
+    return img
+
 # Agument the image
 def augment(img, remove_excess = True, excess_str = 110, apply_flip = False,
             flip_random = True, apply_rotation = False, rotation = None,
@@ -403,7 +414,7 @@ def augment(img, remove_excess = True, excess_str = 110, apply_flip = False,
     if apply_rotation:
         if rotation == None:
             rotation = randint(0,359)
-        img = ndimage.rotate(img, rotation, mode='constant',cval=padding_val)
+        img = rotate_img(img,rotation)
     else:
         rotation = 0
     if apply_transformation:
@@ -448,9 +459,7 @@ def augment(img, remove_excess = True, excess_str = 110, apply_flip = False,
     #Changes all the pixels with drawing to one and all the "empty" pixels to 0.
     if scale_to_binary:
         if invert:
-            loc = img <= binary_threshold
-            img[img > binary_threshold] = 0
-            img[loc] = 255
+            img = invert(img)
         else:
             img[img <= binary_threshold] = 0
             img[img > binary_threshold] = 255

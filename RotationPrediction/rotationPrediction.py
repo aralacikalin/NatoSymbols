@@ -16,8 +16,8 @@ def main():
 
     model = modelCNN()
 
-    images = '../data/images/'
-    labels = '../data/labels/'
+    images = './images/'
+    labels = './labels/'
     viz_images = '../SymbolVisualizer/images/'
     viz_labels = '../SymbolVisualizer/labels/'
     file_list = os.listdir(images)
@@ -54,23 +54,25 @@ def main():
 def modelCNN():
     classes = 360
 
-    input_ = Input(shape=(75, 75, 1))
-    x = Conv2D(64, 3, 3, padding = 'same', activation='relu')(input_)
-    x = Conv2D(64, 3, 3, padding = 'same', activation='relu')(x)
-    x = MaxPooling2D(pool_size=(2, 2))(x)
-    x = Dropout(0.25)(x)
-    x = Dense(256, activation='relu')(x)
+    input = Input(shape=(80, 80, 1))
+    x = Conv2D(32, kernel_size=(3, 3), strides=(1, 1), padding='same', activation='relu')(input)
+    x = MaxPooling2D(pool_size=(2, 2), padding='same')(x)
     x = BatchNormalization()(x)
-    x = Conv2D(64, 3, 3, padding = 'same', activation='relu')(x)
-    x = Conv2D(64, 3, 3, padding = 'same', activation='relu')(x)
-    x = MaxPooling2D(pool_size=(2, 2), padding = 'same')(x)
-    x = Dropout(0.25)(x)
-    x = Dense(128, activation='relu')(x)
+    x = Conv2D(32, kernel_size=(3, 3), strides=(1, 1), padding='same', activation='relu')(x)
+    x = MaxPooling2D(pool_size=(2, 2), padding='same')(x)
     x = BatchNormalization()(x)
+    x = Conv2D(64, kernel_size=(3, 3), strides=(1, 1), padding='same', activation='relu')(x)
+    x = MaxPooling2D(pool_size=(2, 2), padding='same')(x)
+    x = BatchNormalization()(x)
+    x = Conv2D(64, kernel_size=(3, 3), strides=(1, 1), padding='same', activation='relu')(x)
+    x = MaxPooling2D(pool_size=(2, 2), padding='same')(x)
+    x = BatchNormalization()(x)
+    x = Dense(64, activation='relu')(x)
+    x = Dense(64, activation='relu')(x)
     x = Flatten()(x)
     x = Dense(classes, activation='softmax')(x)
 
-    model = Model(inputs=input_, outputs=x)
+    model = Model(inputs=input, outputs=x)
 
     return model
 

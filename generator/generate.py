@@ -120,15 +120,18 @@ def generate_image(sample,
                 img = get_random(label, sample)
                 from_real_film = False
                 img = resize_by_scale(img, img_scale*0.8)
-
-
-
+        
+        point_1 = (0,0)
+        point_2 = (0,0)
         if not from_real_film:
             #Insert unit symbol to screen, cover and guard.
             if label in ['screen', 'cover', 'guard']:
-                img, unit_lab, rotation, point_1, point_2 = add_unit_symbol_in_middle(img, scale, sample_units, manuever_units,
-                                                support_units, resizable, resizable_horizontal,
-                                                resizable_vertical, unit_sizes)
+                if random.uniform(0,1) > 0.5:
+                    img, unit_lab, rotation, point_1, point_2 = add_unit_symbol_in_middle(img, scale, sample_units, manuever_units,
+                                                    support_units, resizable, resizable_horizontal,
+                                                    resizable_vertical, unit_sizes)
+                else:
+                    img, rotation = augment(img, apply_rotation=True, apply_transformation=True, apply_boldness=True)
             else:
                 # Augment the image
                 img, rotation = augment(img, apply_rotation=True, apply_transformation=True, apply_boldness=True)
@@ -142,18 +145,17 @@ def generate_image(sample,
         
         #Check if there is overlap with current symbols.
         #If there is overlap the generate new locations and check again.
-        point1, point2 = get_points(dim, img, locations, locations_units,location_placement)
+        try:
+            point1, point2 = get_points(dim, img, locations, locations_units,location_placement)
+        except:
+            continue
+
+        labels.append(label)
+        rotations.append(rotation)
         
         #We append upper left corner point and lower right corner point.
-        if label in ['screen', 'cover', 'guard'] or from_real_film:
-            locations.append(((point1+point_1[0],point2+point_1[1]),(point1+img.shape[0]+point_2[0],point2+img.shape[1]+point_2[1])))
-        #     canvas =cv2.circle(canvas, (point1+point_1[0],point2+point_1[1]), radius=0, color=255, thickness=-1)
-        #     canvas = cv2.circle(canvas, (point1+img.shape[0]+point_2[0],point2+img.shape[1]+point_2[1]), radius=0, color=255, thickness=-1)
-        #     canvas=canvas.astype(np.uint8)
-        #     cv2.imshow("final image",canvas)
-        #     cv2.waitKey(0)
-        else:
-            locations.append(((point1,point2),(point1+img.shape[0],point2+img.shape[1])))
+        locations.append(((point1+point_1[0],point2+point_1[1]),(point1+img.shape[0]+point_2[0],point2+img.shape[1]+point_2[1])))
+        
         #If there is overlap we don't want to overwrite black pixels with white background.
         canvas = place_symbol(canvas, img, point1, point2)
         
@@ -237,6 +239,7 @@ def main(
     save_dim_h = 578,
     save_dim_w = 770,
     save_as_square = False,
+    save_as_inverse = False,
     examples_nr = 1,
     symbols_dir = 'data/symbols',
     real_symbols_dir = 'data/real_symbols',
@@ -346,11 +349,12 @@ def main(
                 #img[img>=110] = 0
                 #Conversion to float is needed to use resize
                 img = cv2.resize(img.astype('float32'), (int(save_dim[1]),int(save_dim[0]))).astype('int16')
-                offset = 0
                 if save_as_square:
                     img2 = np.full((save_dim[1], save_dim[1]), 255)
                     offset = int((save_dim[1]-save_dim[0])/2)
                     img = place_symbol(img2,img,offset,0)
+                if save_as_inverse:
+                    img = invert(img)
                 cv2.imwrite(f'{save_images_dir}/img{i}.jpg',img)
                 data_labels.append(lab)
                 data_locations.append(loc)
@@ -362,12 +366,19 @@ def main(
     
     labels_to_nr = read_in_labels('/gpfs/space/home/aral/symbols/NatoSymbols/generator/data/labels.txt')
 
+    if save_as_square:
+        offset = int((save_dim[1]-save_dim[0])/2)
+    else:
+        offset = 0
+
+    if save_as_square:
+        offset = int((save_dim[1]-save_dim[0])/2)
+    else:
+        offset = 0
+
     for i in range(len(data_labels)):
         labels = list(map(lambda label : get_labels(label, labels_to_nr), data_labels[i]))
-        if save_as_square:
-            locations = get_locations(data_locations[i],dim[1],dim[1],offset)
-        else:
-            locations = get_locations(data_locations[i],dim[1],dim[0],offset)
+        locations = get_locations(data_locations[i],dim[1],dim[0],offset)
         with open(f'{save_labels_dir}/img{indices[i]}.txt', 'w') as f:
             for k, lab in enumerate(labels):
                 if (k != len(labels)-1):
@@ -376,7 +387,7 @@ def main(
                     f.write(f'{lab} {locations[k,0]} {locations[k,1]} {locations[k,2]} {locations[k,3]}')
     
     for i in range(len(data_rotations)):
-        with open(f'{save_rotations_dir}/img{indices[i]}.txt', 'w') as f:
+        with open(f'{save_rotations_dir}/img{indices[i]}.txt','w') as f:
             for k, rot in enumerate(data_rotations[i]):
                 if (k != len(data_rotations[i])-1):
                     f.write(f'{rot}\n')
@@ -390,6 +401,7 @@ def parse_opt():
     parser.add_argument('--save_dim_h', type=int, default = 578, help='Dimesion in which the generated images are saved')
     parser.add_argument('--save_dim_w', type=int, default = 770, help='Dimesion in which the generated images are saved')
     parser.add_argument('--save_as_square', type=bool, default = False, help='If the saved iamge hieght and width are equal. Uses save_dim[1] as dimension for both')
+    parser.add_argument('--save_as_inverse', type=bool, default = False, help='Switches black and white pixels when saving')
     parser.add_argument('--examples_nr', type=int, default = 1, help='Number of images to generate')
     parser.add_argument('--symbols_dir', type=str, default='data/symbols', help='Directory in which the sample of tactical tasks are')
     parser.add_argument('--real_symbols_dir', type=str, default='data/real_symbols', help='Directory in which the sample of tactical tasks cut from real films are')
