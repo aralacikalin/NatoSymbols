@@ -386,7 +386,7 @@ def place_exercise_text(canvas, scale, sample, language = None):
 
     return canvas
 
-def invert(img, binary_threshold=110):
+def inverse(img, binary_threshold=110):
     loc = img <= binary_threshold
     img[img > binary_threshold] = 0
     img[loc] = 255
@@ -457,7 +457,7 @@ def augment(img, remove_excess = True, excess_str = 110, apply_flip = False,
     #Changes all the pixels with drawing to one and all the "empty" pixels to 0.
     if scale_to_binary:
         if invert:
-            img = invert(img)
+            img = inverse(img)
         else:
             img[img <= binary_threshold] = 0
             img[img > binary_threshold] = 255
