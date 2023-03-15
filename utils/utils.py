@@ -71,3 +71,9 @@ def check_dir(dir):
     if dir[-1] == '/':
         dir = dir[:-1]
     return dir
+
+def inverse(img, binary_threshold=110):
+    loc = img <= binary_threshold
+    img[img > binary_threshold] = 0
+    img[loc] = 255
+    return img

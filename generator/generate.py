@@ -236,6 +236,7 @@ def main(
     save_dim_w = 770,
     save_as_square = False,
     save_as_inverse = False,
+    vertical_ratio = 0.0,
     examples_nr = 1,
     symbols_dir = 'data/symbols',
     real_symbols_dir = 'data/real_symbols',
@@ -284,12 +285,13 @@ def main(
         sample = read_into_dic(f'{symbols_dir}/{dir}', symbols_regex, sample)
 
     sample_real = {}
-    for dir in os.listdir(real_symbols_dir):
-        sample_real = real_symbol_utils.read_into_dic(f'{real_symbols_dir}/{dir}', symbols_regex, sample_real)
-
     sample_real_Clean={}
-    for dir in os.listdir(real_symbols_clean_dir):
-        sample_real_Clean = real_symbol_utils.read_into_dic(f'{real_symbols_clean_dir}/{dir}', symbols_regex, sample_real_Clean)
+    if(real_symbols_ratio!=0):
+        for dir in os.listdir(real_symbols_dir):
+            sample_real = real_symbol_utils.read_into_dic(f'{real_symbols_dir}/{dir}', symbols_regex, sample_real)
+
+        for dir in os.listdir(real_symbols_clean_dir):
+            sample_real_Clean = real_symbol_utils.read_into_dic(f'{real_symbols_clean_dir}/{dir}', symbols_regex, sample_real_Clean)
     
     # Read in the unit symbols
     sample_units = read_into_dic(unit_symbols_dir, units_regex)
@@ -305,11 +307,6 @@ def main(
     if not os.path.exists(save_rotations_dir):
         os.makedirs(save_rotations_dir)
 
-    data_labels = []
-    data_locations = []
-    data_rotations = []
-    indices = []
-
     # references for real background generation
     backgroundImageList=background_utils.ProcessBackgrounds(real_backgrounds_dir)
     
@@ -317,22 +314,34 @@ def main(
     realBackgroundSampleCount=round(examples_nr*real_backgrounds_ratio)
     realBackgroundSample=random.sample(range(examples_nr),realBackgroundSampleCount)
 
+    if save_as_square:
+        offset = int((save_dim[1]-save_dim[0])/2)
+    else:
+        offset = 0
+
+    labels_to_nr = read_in_labels('data/labels.txt')
+
     for i in tqdm(range(examples_nr)):
         not_successful = True
         while not_successful:
             try:
+                save_dim = (save_dim_h,save_dim_w)
+                dim = (dim_h,dim_w)
                 scale = random.uniform(0.5,1.2)
                 if(i in realBackgroundSample):
                     canvas,boundingBoxesToRemove,background_dim=random.choice(backgroundImageList)
                     canvas=canvas.copy()
-                    img, loc, lab, rot, loc_units, lab_units  = background_utils.generate_image_with_real_background(
+                    img, locations, labels, rotations, loc_units, lab_units  = background_utils.generate_image_with_real_background(
                                                                                         boundingBoxesToRemove,
                                                                                         sample, 
                                                                                         canvas, 
                                                                                         background_dim,dim)
                                         
                 else:
-                    img, loc, lab, rot, loc_units, lab_units  = generate_image(sample, sample_real,sample_real_Clean, sample_units,
+                    if random.uniform(0,1) > vertical_ratio:
+                        save_dim = (save_dim_w,save_dim_h)
+                        dim = (dim_w,dim_h)
+                    img, locations, labels, rotations, loc_units, lab_units  = generate_image(sample, sample_real,sample_real_Clean, sample_units,
                                                                             sample_extras, scale, manuever_units,
                                                                             support_units,
                                                                             resizable,
@@ -350,45 +359,29 @@ def main(
                     offset = int((save_dim[1]-save_dim[0])/2)
                     img = place_symbol(img2,img,offset,0)
                 if save_as_inverse:
-                    img = invert(img)
+                    img = inverse(img)
                 cv2.imwrite(f'{save_images_dir}/img{i}.jpg',img)
-                data_labels.append(lab)
-                data_locations.append(loc)
-                data_rotations.append(rot)
-                indices.append(i)
+
+                labels2 = list(map(lambda label : get_labels(label, labels_to_nr), labels))
+                locations2 = get_locations(locations,dim[1],dim[0],offset)
+
+                with open(f'{save_labels_dir}/img{i}.txt', 'w') as f:
+                    for k, lab in enumerate(labels2):
+                        if (k != len(labels2)-1):
+                            f.write(f'{lab} {locations2[k,0]} {locations2[k,1]} {locations2[k,2]} {locations2[k,3]}\n')
+                        else:
+                            f.write(f'{lab} {locations2[k,0]} {locations2[k,1]} {locations2[k,2]} {locations2[k,3]}')
+                
+                with open(f'{save_rotations_dir}/img{i}.txt','w') as f:
+                    for k, rot in enumerate(rotations):
+                        if (k != len(rotations)-1):
+                            f.write(f'{rot}\n')
+                        else:
+                            f.write(f'{rot}')
                 not_successful = False
             except:
                 continue
     
-    labels_to_nr = read_in_labels('./data/labels.txt')
-
-    if save_as_square:
-        offset = int((save_dim[1]-save_dim[0])/2)
-    else:
-        offset = 0
-
-    if save_as_square:
-        offset = int((save_dim[1]-save_dim[0])/2)
-    else:
-        offset = 0
-
-    for i in range(len(data_labels)):
-        labels = list(map(lambda label : get_labels(label, labels_to_nr), data_labels[i]))
-        locations = get_locations(data_locations[i],dim[1],dim[0],offset)
-        with open(f'{save_labels_dir}/img{indices[i]}.txt', 'w') as f:
-            for k, lab in enumerate(labels):
-                if (k != len(labels)-1):
-                    f.write(f'{lab} {locations[k,0]} {locations[k,1]} {locations[k,2]} {locations[k,3]}\n')
-                else:
-                    f.write(f'{lab} {locations[k,0]} {locations[k,1]} {locations[k,2]} {locations[k,3]}')
-    
-    for i in range(len(data_rotations)):
-        with open(f'{save_rotations_dir}/img{indices[i]}.txt','w') as f:
-            for k, rot in enumerate(data_rotations[i]):
-                if (k != len(data_rotations[i])-1):
-                    f.write(f'{rot}\n')
-                else:
-                    f.write(f'{rot}')
 
 def parse_opt():
     parser = argparse.ArgumentParser()
@@ -398,6 +391,7 @@ def parse_opt():
     parser.add_argument('--save_dim_w', type=int, default = 770, help='Dimesion in which the generated images are saved')
     parser.add_argument('--save_as_square', type=bool, default = False, help='If the saved iamge hieght and width are equal. Uses save_dim[1] as dimension for both')
     parser.add_argument('--save_as_inverse', type=bool, default = False, help='Switches black and white pixels when saving')
+    parser.add_argument('--vertical_ratio', type=float, default = 0.0, help='Probabilty that generated image is vertical / will switch dim_h and dim_w')
     parser.add_argument('--examples_nr', type=int, default = 1, help='Number of images to generate')
     parser.add_argument('--symbols_dir', type=str, default='data/symbols', help='Directory in which the sample of tactical tasks are')
     parser.add_argument('--real_symbols_dir', type=str, default='data/real_symbols', help='Directory in which the sample of tactical tasks cut from real films are')
