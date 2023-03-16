@@ -158,8 +158,11 @@ def generate_image(sample,
         #Draw phase line
         if label in ['attack', 'counterattack', 'advance_to_contact']:
             if random.uniform(0, 1) > 0.4:
-                canvas = draw_line(canvas, point1, point2, rotations[-1], 1, img)
-                canvas = draw_line(canvas, point1, point2, rotations[-1], -1, img)
+                try:
+                    canvas = draw_line(canvas, point1, point2, rotations[-1], 1, img)
+                    canvas = draw_line(canvas, point1, point2, rotations[-1], -1, img)
+                except:
+                    pass
         
         if label not in ['screen', 'cover', 'guard']:
             if random.uniform(0, 1) > 0.2:
@@ -338,7 +341,7 @@ def main(
                                                                                         background_dim,dim)
                                         
                 else:
-                    if random.uniform(0,1) > vertical_ratio:
+                    if random.uniform(0,1) < vertical_ratio:
                         save_dim = (save_dim_w,save_dim_h)
                         dim = (dim_w,dim_h)
                     img, locations, labels, rotations, loc_units, lab_units  = generate_image(sample, sample_real,sample_real_Clean, sample_units,
