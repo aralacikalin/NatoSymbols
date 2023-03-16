@@ -345,6 +345,8 @@ def main(
                     img2 = np.full((save_dim[1], save_dim[1]), 255)
                     offset = int((save_dim[1]-save_dim[0])/2)
                     img = place_symbol(img2,img,offset,0)
+                    offset = int((dim[1]-dim[0])/2)
+                    dim=(dim[1],dim[1])
                 if save_as_inverse:
                     img = inverse(img)
                 cv2.imwrite(f'{save_images_dir}/img{i}.jpg',img)
