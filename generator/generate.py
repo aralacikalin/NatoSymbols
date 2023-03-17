@@ -335,7 +335,7 @@ def main(
                     canvas,boundingBoxesToRemove,background_dim=random.choice(backgroundImageList)
                     canvas=canvas.copy()
                     img, locations, labels, rotations, loc_units, lab_units  = background_utils.generate_image_with_real_background(
-                                                                                        boundingBoxesToRemove,
+                                                                                        boundingBoxesToRemove,real_symbols_ratio,sample_real,sample_real_Clean,
                                                                                         sample, 
                                                                                         canvas, 
                                                                                         background_dim,dim)

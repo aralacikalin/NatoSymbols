@@ -1,6 +1,8 @@
 
 import glob
 from generator_utils import *
+import real_symbol_utils
+
 
 def rotateBoundingBoxes(boundingBoxesToRemove,dim):
     height=dim[0]
@@ -28,7 +30,7 @@ def normalizePoints(boundingBoxesToRemove,dim,newDim):
 
 
 
-def generate_image_with_real_background(boundingBoxesToRemove,sample,canvas,
+def generate_image_with_real_background(boundingBoxesToRemove,real_symbols_ratio,sample_real,sample_real_Clean,sample,canvas,
                    dim,
                    generator_dim=(4624,3468)):
     # canvas = np.full(dim, 255) #Size of final image
@@ -91,9 +93,42 @@ def generate_image_with_real_background(boundingBoxesToRemove,sample,canvas,
         img = get_random(label, sample)
         img = resize_by_scale(img, img_scale)
 
+        if random.uniform(0, 1) > real_symbols_ratio:
+                img = get_random(label, sample)
+                from_real_film = False
+                img = resize_by_scale(img, img_scale*0.8)
+        else:
+            if(label in sample_real_Clean):
+                #There might not be sample from real film
+                imgClean,imgDirty = real_symbol_utils.get_random_pair(label, sample_real_Clean,sample_real)
+                from_real_film = True
+                imgClean = resize_by_scale(imgClean, 1.8)
+                imgDirty = resize_by_scale(imgDirty, 1.8)
+
+
+                # cv2.imshow("imgClean",imgClean)
+                # cv2.imshow("imgDirty",imgDirty)
+                # cv2.waitKey(0)
+
+            else:
+                img = get_random(label, sample)
+                from_real_film = False
+                img = resize_by_scale(img, img_scale*0.8)
+        
+        point_1 = (0,0)
+        point_2 = (0,0)
+        if not from_real_film:
+                # Augment the image
+                img, rotation = augment(img, apply_rotation=True, apply_transformation=True, apply_boldness=True)
+        else:
+            #TODO Need to predefine rotations for real films.
+            rotation = 0
+            img, rotation, point_1, point_2=real_symbol_utils.add_real_symbol(imgClean,imgDirty,1)
+    
+
+
         #? to fit the symbol to original symbol bounding box, but stretches symbol, so not correct. 
  
-        img, rotation = augment(img, apply_rotation=True, apply_transformation=True, apply_boldness=True, scale_to_binary = True)
         symbolDim=(img.shape[1],img.shape[0])
         if(symbolDim[0]>dim[0] or symbolDim[1]>dim[1]):
 
@@ -103,13 +138,18 @@ def generate_image_with_real_background(boundingBoxesToRemove,sample,canvas,
                 #todo use widthRation to resize
                 img = cv2.resize(img, (int(round(img.shape[1]*widthRatio)),int(round(img.shape[0]*widthRatio))))
                 symbolDim=(img.shape[1],img.shape[0])
+                if(from_real_film):
+                    point_1=(int(point_1[0]*widthRatio),int(point_1[1]*widthRatio))
+                    point_2=(int(point_2[0]*widthRatio),int(point_2[1]*widthRatio))
 
                 newPlacementX=dim[0]
                 newPlacementY=dim[1]
             else:
                 img = cv2.resize(img, (int(round(img.shape[1]*heightRatio)),int(round(img.shape[0]*heightRatio))))
                 symbolDim=(img.shape[1],img.shape[0])
-
+                if(from_real_film):
+                    point_1=(int(point_1[0]*heightRatio),int(point_1[1]*heightRatio))
+                    point_2=(int(point_2[0]*heightRatio),int(point_2[1]*heightRatio))
                 newPlacementX=dim[0]
                 newPlacementY=dim[1]
         
@@ -145,7 +185,7 @@ def generate_image_with_real_background(boundingBoxesToRemove,sample,canvas,
             
 
         #We append upper left corner point and lower right corner point.
-        locations.append(((point1,point2),(point1+img.shape[0],point2+img.shape[1])))
+        locations.append(((point1+point_1[0],point2+point_1[1]),(point1+img.shape[0]+point_2[0],point2+img.shape[1]+point_2[1])))
         #If there is overlap we don't want to overwrite black pixels with white background.
         canvas = place_symbol(canvas, img, point1, point2)
  
