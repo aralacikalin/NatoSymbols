@@ -8,7 +8,7 @@ import imutils
 import glob
 
 from keras.models import Model
-from keras.layers import Input, Conv2D, MaxPooling2D, UpSampling2D
+from keras.layers import Input, Conv2D, MaxPooling2D, UpSampling2D, BatchNormalization, Flatten, Dense
 from sklearn.neighbors import NearestNeighbors
 
 
@@ -20,6 +20,7 @@ def argParser():
     parser.add_argument('--useOriginalClassColors', type=int,default=1, help='using the orginal color of templates')
     parser.add_argument('--useTrajectory', type=bool, default=False, help="To use trajectory finding similarities or not")
     parser.add_argument('--useDecoder', type=bool, default=False, help="use decoder or not")
+    parser.add_argument('--useBaseModel', type=bool, default=False, help="Use base model or not")
     opt = parser.parse_args()
     return opt
 
@@ -199,6 +200,32 @@ def modelTrajectory():
 
     return model
 
+def modelBase():
+    classes = 6
+
+    input = Input(shape=(80, 80, 1))
+    x = Conv2D(64, kernel_size = (3, 3), strides = (1, 1), padding = 'same', activation='relu')(input)
+    x = MaxPooling2D(pool_size=(2, 2), padding = 'same')(x)
+    x = BatchNormalization()(x)
+    x = Conv2D(64, kernel_size = (3, 3), strides = (1, 1), padding = 'same', activation='relu')(x)
+    x = MaxPooling2D(pool_size=(2, 2), padding = 'same')(x)
+    x = BatchNormalization()(x)
+    x = Conv2D(128, kernel_size = (3, 3), strides = (1, 1), padding = 'same', activation='relu')(x)
+    x = MaxPooling2D(pool_size=(2, 2), padding = 'same')(x)
+    x = BatchNormalization()(x)
+    x = Conv2D(128, kernel_size = (3, 3), strides = (1, 1), padding = 'same', activation='relu')(x)
+    x = MaxPooling2D(pool_size=(2, 2), padding = 'same')(x)
+    x = BatchNormalization()(x)
+    x = Dense(256, activation='relu')(x)
+    x = Dense(256, activation='relu')(x)
+    x = Flatten()(x)
+    x = Dense(classes, activation='softmax')(x)
+
+    model = Model(inputs=input, outputs=x)
+    # print(model.summary())
+
+    return model
+
 
 class symbolViz:
     def __init__(self, *args, **kwargs):
@@ -215,6 +242,7 @@ class symbolViz:
         self.__mainAttackData = None
 
         self.__dim = (120, 120)
+        self.__dim_base = (80, 80)
 
 
     def main(self):
@@ -226,6 +254,7 @@ class symbolViz:
             labelsPath=imagesPath
 
         bUseTrajectorySymbols = opt.useTrajectory
+        bUseBaseModel = opt.useBaseModel
         bUseDecoder = opt.useDecoder
 
         if bUseTrajectorySymbols:
@@ -267,6 +296,13 @@ class symbolViz:
                 for out in yoloOutput:
                     if out[0] in [0, 2, 9, 18]:
                         self.VisualizeSymbolTrajectory(symbolsImage, out[1], out[2], out[0], symbolsImageOriginal, image, imageGray, bUseDecoder)
+                    else:
+                        VisualizeSymbol(symbolsImage,out[1],out[2],out[0],classesImages,classesImagesRed,symbolsImageOriginal)
+
+            elif bUseBaseModel:
+                for out in yoloOutput:
+                    if out[0] in [0, 2, 9, 18]:
+                        self.VisualizeSymbolBase(symbolsImage, out[1], out[2], out[0], symbolsImageOriginal, image, imageGray)
                     else:
                         VisualizeSymbol(symbolsImage,out[1],out[2],out[0],classesImages,classesImagesRed,symbolsImageOriginal)
 
@@ -438,6 +474,76 @@ class symbolViz:
 
         thresholdVal, _ = cv2.threshold(mostSimilarImage, 0, 255, thresh_type + cv2.THRESH_OTSU)
         _, copyClassImg = cv2.threshold(mostSimilarImage, thresholdVal, 255, thresh_type)
+        copyClassImg = cv2.bitwise_not(copyClassImg)
+        newX = symbolXEnd - symbolXStart
+        newY = symbolyEnd - symbolyStart
+
+        rotatedClass = imutils.rotate_bound(copyClassImg, symbolRotation)
+        rotatedClassOriginal = imutils.rotate_bound(image, symbolRotation)
+
+        nonZeroIndexesRotatedClass = np.where(rotatedClass != 0)
+        nonZeroIndexesRotatedClassT = np.where(rotatedClass.T != 0)
+        topBound = nonZeroIndexesRotatedClass[0][0]
+        bottomBound = nonZeroIndexesRotatedClass[0][-1]
+
+        leftBound = nonZeroIndexesRotatedClassT[0][0]
+        rightBound = nonZeroIndexesRotatedClassT[0][-1]
+        rotatedClass = rotatedClass[topBound:bottomBound, leftBound:rightBound].copy()
+        rotatedClassOriginal = rotatedClassOriginal[topBound:bottomBound, leftBound:rightBound].copy()
+
+        resizedClass = cv2.resize(rotatedClass, (newX, newY), interpolation=cv2.INTER_AREA)
+        resizedClassOriginal = cv2.resize(rotatedClassOriginal, (newX, newY), interpolation=cv2.INTER_AREA)
+
+        binaryClass = cv2.bitwise_not(resizedClass)
+        resizedClassOriginal[binaryClass != 0] = (255, 255, 255)
+
+        symbolsImage[symbolyStart:symbolyEnd, symbolXStart:symbolXEnd] = cv2.bitwise_and(symbolsImage[symbolyStart:symbolyEnd, symbolXStart:symbolXEnd], binaryClass)
+        symbolsImageOriginal[symbolyStart:symbolyEnd, symbolXStart:symbolXEnd] = cv2.bitwise_and(symbolsImageOriginal[symbolyStart:symbolyEnd, symbolXStart:symbolXEnd], resizedClassOriginal)
+
+    def VisualizeSymbolBase(self, symbolsImage, boundingBoxCoordinates, symbolRotation, symbolClass, symbolsImageOriginal, image, imageGray):
+        x, y, w, h = boundingBoxCoordinates
+
+        symbolRotation = -symbolRotation
+        imageW = symbolsImage.shape[1]
+        imageH = symbolsImage.shape[0]
+
+        x, w, y, h = int(x * imageW), int(w * imageW), int(y * imageH), int(h * imageH)
+
+        symbolXStart = int(x - w / 2)
+        symbolyStart = int(y - h / 2)
+        symbolXEnd = int(x + w / 2)
+        symbolyEnd = int(y + h / 2)
+        thresh_type = cv2.THRESH_BINARY
+
+        mainImageSymbol = imageGray[symbolyStart:symbolyEnd, symbolXStart:symbolXEnd]
+
+        resized_img = cv2.resize(mainImageSymbol, self.__dim_base, interpolation=cv2.INTER_AREA)
+        reshaped_img = resized_img.reshape(1, 80, 80)
+
+        model = modelBase()
+        model.load_weights('./baseModel/base_pose_model_1803.h5')
+        predicted_label = model.predict(reshaped_img, verbose=0)
+        pLabel = np.argmax(predicted_label)
+        liClassesBase = ['otse_k', 'otse_l', 'parem_n', 'parem_y', 'vasak_n', 'vasak_y']
+        strLabel = liClassesBase[pLabel]
+
+        if symbolClass == 0:
+            strImage = "advance_to_contact_"+strLabel+".png"
+            imgSymbol = cv2.imread("./VisulaizerClassesExtra/"+strImage, cv2.IMREAD_GRAYSCALE)
+        elif symbolClass == 2:
+            strImage = "attack_" + strLabel + ".png"
+            imgSymbol = cv2.imread("./VisulaizerClassesExtra/" + strImage, cv2.IMREAD_GRAYSCALE)
+        elif symbolClass == 9:
+            strImage = "counterattack_" + strLabel + ".png"
+            imgSymbol = cv2.imread("./VisulaizerClassesExtra/" + strImage, cv2.IMREAD_GRAYSCALE)
+        elif symbolClass == 18:
+            strImage = "main_attack_" + strLabel + ".png"
+            imgSymbol = cv2.imread("./VisulaizerClassesExtra/" + strImage, cv2.IMREAD_GRAYSCALE)
+        else:
+            print("ERROR")
+
+        thresholdVal, _ = cv2.threshold(imgSymbol, 0, 255, thresh_type + cv2.THRESH_OTSU)
+        _, copyClassImg = cv2.threshold(imgSymbol, thresholdVal, 255, thresh_type)
         copyClassImg = cv2.bitwise_not(copyClassImg)
         newX = symbolXEnd - symbolXStart
         newY = symbolyEnd - symbolyStart
