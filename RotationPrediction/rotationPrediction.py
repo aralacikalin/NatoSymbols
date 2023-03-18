@@ -31,19 +31,22 @@ def main():
         with open(labels+str(name).split(".")[0]+".txt", "r") as f:
             lines = [line.rstrip('\n') for line in f]
             for line in lines:
-                x = int((float(line.split(" ")[1])-(float(line.split(" ")[3])/2)) * imageW)
-                y = int((float(line.split(" ")[2])-(float(line.split(" ")[4])/2)) * imageH)
-                w = int(float(line.split(" ")[3]) * imageW + 5)
-                h = int(float(line.split(" ")[4]) * imageH + 5)
+                x = int((float(line.split(" ")[1])-(float(line.split(" ")[3])/2)) * imageW) - 25
+                y = int((float(line.split(" ")[2])-(float(line.split(" ")[4])/2)) * imageH) - 25
+                w = int(float(line.split(" ")[3]) * imageW + 25)
+                h = int(float(line.split(" ")[4]) * imageH + 25)
 
                 crop_image = image[y:y+h, x:x+w]
                 tmp_list_class.append(int(line.split(" ")[0]))
-                dim = (75, 75)
+                dim = (80, 80)
                 resized_img = cv2.resize(crop_image, dim, interpolation = cv2.INTER_AREA)
 
+                # cv2.imshow("finalImg",resized_img)
+                # cv2.waitKey()
+
                 # Predict
-                reshaped_img = resized_img.reshape(1, 75, 75)
-                model.load_weights('./rotation_models/'+Dict[int(line.split(" ")[0])]+'_rotation_model_31.h5')
+                reshaped_img = resized_img.reshape(1, 80, 80)
+                model.load_weights('./rotation_models/'+Dict[int(line.split(" ")[0])]+'_rotation_model_31_1203.h5')
                 predicted_rotation = model.predict(reshaped_img, verbose=0)
                 line += f" {np.argmax(predicted_rotation)}\n"
                 new_lines += line
