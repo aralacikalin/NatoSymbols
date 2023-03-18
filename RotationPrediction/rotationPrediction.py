@@ -41,15 +41,26 @@ def main():
                 dim = (80, 80)
                 resized_img = cv2.resize(crop_image, dim, interpolation = cv2.INTER_AREA)
 
-                # cv2.imshow("finalImg",resized_img)
-                # cv2.waitKey()
-
                 # Predict
                 reshaped_img = resized_img.reshape(1, 80, 80)
                 model.load_weights('./rotation_models/'+Dict[int(line.split(" ")[0])]+'_rotation_model_31_1203.h5')
                 predicted_rotation = model.predict(reshaped_img, verbose=0)
-                line += f" {np.argmax(predicted_rotation)}\n"
+                degreePrediction = np.argmax(predicted_rotation)
+                line += f" {degreePrediction}\n"
                 new_lines += line
+
+                # if line.split(" ")[0] in ["0", "2", "9", "18"]:
+                #     # To see the prediction
+                #     font = cv2.FONT_HERSHEY_SIMPLEX
+                #     font_scale = 0.5
+                #     font_color = (200, 0, 0)
+                #     thickness = 2
+                #     text_size, _ = cv2.getTextSize(str(degreePrediction), font, font_scale, thickness)
+                #     x_ = int((resized_img.shape[1] - text_size[0]) / 2)
+                #     y_ = int((resized_img.shape[0] + text_size[1]) / 2)
+                #     cv2.putText(resized_img, str(degreePrediction), (x_, y_), font, font_scale, font_color, thickness)
+                #     cv2.imshow("Test", resized_img)
+                #     cv2.waitKey()
 
         with open(viz_labels + str(name).split(".")[0] + ".txt", "w") as f_w:
             f_w.write(new_lines)
