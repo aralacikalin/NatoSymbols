@@ -194,8 +194,33 @@ def get_locations(data_locations, dim0, dim1, offset = 0):
 
 # Checks if screen, cover or guard there is cap between arrow and letter or not. If there is cap between them,
 # then we can't take the first column where there are no black pixels.
-def check_if_cap(img, check_left = True, excess_str = 120):
+def find_cap(img, excess_str = 120):
     values = np.argwhere(np.amin(img,axis=0) > excess_str)
+
+    val_prev = values[0][0]
+    sizes = []
+    cuts = []
+    cuts.append(0)
+    size = 1
+    for i in range(1,len(values)):
+        val = values[i][0]
+        if val-val_prev == 1:
+            val_prev = val
+            size += 1
+        else:
+            val_prev = val
+            sizes.append(size)
+            cuts.append(i)
+            size = 1
+    sizes.append(size)
+    cuts.append(i)
+
+    loc = np.argmax(sizes) + 1
+    left = values[cuts[loc-1]][0]
+    right = values[cuts[loc]-1][0]
+    return left, right
+
+    """
     if check_left:
         val = values[0][0]
         start = 1
@@ -216,7 +241,7 @@ def check_if_cap(img, check_left = True, excess_str = 120):
             if values[i] - const > values[i-const]:
                 val = values[i][0]
                 break
-    return val
+    """
 
 def rotate_img(img, rotation,padding_val=255):
     img_rotated = ndimage.rotate(img, rotation, mode='constant',cval=padding_val)
@@ -232,8 +257,8 @@ def add_unit_symbol_in_middle(img, scale, sample_units, manuever_units,
     img, rotation = augment(img, apply_rotation=False, apply_transformation=True, apply_boldness=True, scale_to_binary=True)
 
     # Find if there is cap between arrow and letter S/C/G or not
-    left = check_if_cap(img)
-    right = check_if_cap(img, check_left = False)
+    left, right = find_cap(img)
+    #right = check_if_cap(img, check_left = False)
 
     #Get unit_symbol  
     unit_symbol, unit_lab = generate_unit(sample_units,"maneuver",

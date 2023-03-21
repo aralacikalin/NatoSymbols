@@ -130,7 +130,7 @@ def generate_image(sample,
                 img, rotation = augment(img, apply_rotation=True, apply_transformation=True, apply_boldness=True)
         
         #Check if there is overlap with current symbols.
-        #If there is overlap the generate new locations and check again.
+        #If there is overlap then generate new locations and check again.
         try:
             point1, point2 = get_points(dim, img, locations, locations_units,location_placement)
         except:
