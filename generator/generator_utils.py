@@ -220,31 +220,32 @@ def find_cap(img, excess_str = 120):
     right = values[cuts[loc]-1][0]
     return left, right
 
+def rotate_img(img, rotation,padding_value=255):
     """
-    if check_left:
-        val = values[0][0]
-        start = 1
-        end = len(values)
-        const = 1
-        const2 = 0
-    else:
-        val = values[-1][0]
-        start = len(values)-2
-        end = 0
-        const = -1
-        const2 = -1
-    if len(values < 25):
-        return val
-    
-    if val + const*25 != values[const*25+const2][0]: #Value 20 is taken with respect to current dataset. If the cap between two sides is smaller than 10, then it produces error.
-        for i in range(start,end):
-            if values[i] - const > values[i-const]:
-                val = values[i][0]
-                break
+    Rotate an image by a given angle.
+
+    Parameters
+    ----------
+    img : numpy.ndarray
+        The image to be rotated.
+    rotation : float
+        The rotation angle in degrees.
+    padding_val : int, optional
+        The value to use for padding. Default is 255.
+
+    Returns
+    -------
+    numpy.ndarray
+        The rotated image.
     """
 
-def rotate_img(img, rotation,padding_val=255):
-    img_rotated = ndimage.rotate(img, rotation, mode='constant',cval=padding_val)
+    if not isinstance(img, np.ndarray):
+        raise TypeError("img must be a NumPy array")
+
+    if not isinstance(rotation, (int, float)):
+        raise TypeError("rotation must be a number")
+    
+    img_rotated = ndimage.rotate(img, rotation, mode='constant',cval=padding_value)
     return img_rotated
 
 # Adds unit symbol in the middle of screen, cover and guard.
@@ -256,9 +257,8 @@ def add_unit_symbol_in_middle(img, scale, sample_units, manuever_units,
 
     img, rotation = augment(img, apply_rotation=False, apply_transformation=True, apply_boldness=True, scale_to_binary=True)
 
-    # Find if there is cap between arrow and letter S/C/G or not
+    # Find the cap in cover/guard/screen symbol
     left, right = find_cap(img)
-    #right = check_if_cap(img, check_left = False)
 
     #Get unit_symbol  
     unit_symbol, unit_lab = generate_unit(sample_units,"maneuver",
@@ -385,36 +385,79 @@ def get_exercise_text(scale, sample, language):
     return text_img
 
 def place_exercise_text(canvas, scale, sample, language = None):
-    scale = scale*0.7
-    if language == None:
+    """
+    Place the "exercise/õppus" text in top and bottom of the image.
+
+    Parameters
+    ----------
+    canvas : numpy.ndarray
+        The image to where the text will be added.
+    scale : float
+        The scale of the placed text.
+    sample : dictionary
+        The dictionary which will contain the symbols.
+    language : str : Optional
+        The language in which the "exercise" text will be added.
+
+    Returns
+    -------
+    numpy.ndarray
+        The image with added text.
+    """
+
+    if not isinstance(canvas, np.ndarray):
+        raise TypeError("img must be a NumPy array")
+
+    if language is None:
         language = ['en', 'et'][randint(0,1)]
+    elif not isinstance(language, str):
+        raise TypeError("language must be a str")
+    
+    scale = scale*0.7
     vertical_loc = randint(16,28)
     mid = int(canvas.shape[1]/2)
+
     for i in range(2):
-        ex_text1 = get_exercise_text(scale, sample, language)
-        ex_text2 = get_exercise_text(scale, sample, language)
-        ex_text3 = get_exercise_text(scale, sample, language)
-        line1 = get_random('line', sample)
-        line2 = get_random('line', sample)
-        line1 = resize_by_scale(line1, scale)
-        line2 = resize_by_scale(line2, scale)
-        line1 = cv2.resize(line1, (int(line1.shape[1]*0.5),line1.shape[0]))
-        line2 = cv2.resize(line2, (int(line2.shape[1]*0.5),line2.shape[0]))
+        ex_texts = [get_exercise_text(scale, sample, language) for _ in range(3)]
+        lines = [resize_by_scale(get_random('line', sample), scale) for _ in range(2)]
+        lines = [cv2.resize(line, (int(line.shape[1]*0.5), line.shape[0])) for line in lines]
 
-        canvas = place_symbol(canvas, ex_text1, vertical_loc, mid-int(ex_text2.shape[1]/2)-line1.shape[1]-ex_text1.shape[1]-8)
-        canvas = place_symbol(canvas, line1, vertical_loc+int(ex_text1.shape[0]/2)-int(line1.shape[0]/2), mid-int(ex_text2.shape[1]/2)-line1.shape[1]-4)
-        canvas = place_symbol(canvas, ex_text2, vertical_loc, mid-int(ex_text2.shape[1]/2))
-        canvas = place_symbol(canvas, line2, vertical_loc+int(ex_text2.shape[0]/2)-int(line2.shape[0]/2), mid+int(ex_text2.shape[1]/2)+4)
-        canvas = place_symbol(canvas, ex_text3, vertical_loc, mid+int(ex_text2.shape[1]/2)+line2.shape[1]+8)
+        canvas = place_symbol(canvas, ex_texts[0], vertical_loc, mid-int(ex_texts[1].shape[1]/2)-lines[0].shape[1]-ex_texts[0].shape[1]-8)
+        canvas = place_symbol(canvas, lines[0], vertical_loc+int(ex_texts[0].shape[0]/2)-int(lines[0].shape[0]/2), mid-int(ex_texts[1].shape[1]/2)-lines[0].shape[1]-4)
+        canvas = place_symbol(canvas, ex_texts[1], vertical_loc, mid-int(ex_texts[1].shape[1]/2))
+        canvas = place_symbol(canvas, lines[1], vertical_loc+int(ex_texts[1].shape[0]/2)-int(lines[1].shape[0]/2), mid+int(ex_texts[1].shape[1]/2)+4)
+        canvas = place_symbol(canvas, ex_texts[2], vertical_loc, mid+int(ex_texts[1].shape[1]/2)+lines[1].shape[1]+8)
 
-        vertical_loc = canvas.shape[0]-int(1.1*np.maximum(np.maximum(ex_text1.shape[0],ex_text2.shape[0]),ex_text3.shape[0]))
+        vertical_loc = canvas.shape[0]-int(1.1*np.maximum(np.maximum(ex_texts[0].shape[0],ex_texts[1].shape[0]),ex_texts[2].shape[0]))
 
     return canvas
 
 def inverse(img, binary_threshold=110):
-    loc = img <= binary_threshold
-    img[img > binary_threshold] = 0
-    img[loc] = 255
+    """
+    Inverse the black and white pixels of an image.
+
+    Parameters
+    ----------
+    img : numpy.ndarray
+        The image to be rotated.
+    rotation : float
+        The rotation angle in degrees.
+    binary_threshold : int, optional
+        The value to from which the threshold is applied Default is 255.
+
+    Returns
+    -------
+    numpy.ndarray
+        The inverse image.
+    """
+
+    if not isinstance(img, np.ndarray):
+        raise TypeError("img must be a NumPy array")
+    # Check if the given threshold is in limits
+    if not 0 <= binary_threshold <= 255:
+        raise ValueError("binary_threshold must be between 0 and 255")
+    # Set the background pixels to 0 and symbols pixels to 255
+    img = np.where(img <= binary_threshold, 255, 0)
     return img
 
 # Agument the image
