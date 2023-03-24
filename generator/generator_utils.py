@@ -158,16 +158,34 @@ def read_into_list(directory, re_in):
 
     return output_list, output_labels
 
-# Resize the image by scale
-def resize_by_scale(symbol, scale):
-    symbol = cv2.resize(symbol, (int(symbol.shape[1]*scale),int(symbol.shape[0]*scale)))
-    return symbol
+def resize_by_scale(img, scale):
 
-# Remove excess rows and columns from symbol image
-def cut_excess_white(symbol, excess_str = 120):
-    symbol = symbol[np.argwhere(np.amin(symbol,axis=1) < excess_str)[0][0]:np.argwhere(np.amin(symbol,axis=1) < excess_str)[-1][0],:]
-    symbol = symbol[:,np.argwhere(np.amin(symbol,axis=0) < excess_str)[0][0]:np.argwhere(np.amin(symbol,axis=0) < excess_str)[-1][0]]
-    return symbol
+    """
+    Resize the image by scale
+    """
+
+    if not isinstance(img, np.ndarray):
+        raise TypeError("img must be a numpy array")
+    if not isinstance(scale, (int, float)):
+        raise TypeError("scale must be int or float")
+
+    img = cv2.resize(img, (int(img.shape[1]*scale),int(img.shape[0]*scale)))
+    return img
+
+def cut_excess_white(img, excess_str = 120):
+
+    """
+    Remove excess rows and columns from img
+    """
+
+    if not isinstance(img, np.ndarray):
+        raise TypeError("img must be a numpy array")
+    if not 0 <= excess_str <= 255:
+        raise ValueError("excess_str must be between 0 and 255")
+    
+    img = img[np.argwhere(np.amin(img,axis=1) < excess_str)[0][0]:np.argwhere(np.amin(img,axis=1) < excess_str)[-1][0],:]
+    img = img[:,np.argwhere(np.amin(img,axis=0) < excess_str)[0][0]:np.argwhere(np.amin(img,axis=0) < excess_str)[-1][0]]
+    return img
 
 def read_in_labels(file):
     labels_to_nr = {}
@@ -178,23 +196,61 @@ def read_in_labels(file):
             i += 1
     return labels_to_nr
 
-# Get integer value of label
 def get_labels(label, labels_to_nr):
+
+    """
+    Return numerical value of the label
+    """
+
+    if not isinstance(label, str):
+        raise TypeError("label must be str")
+
     return labels_to_nr[label]
 
-# Return normalized value of cetner of box and dimensions of it.
-def get_locations(data_locations, dim0, dim1, offset = 0):
+def get_locations(data_locations, image_height, image_width, offset = 0):
+
+    """
+    Computes normalized locations and dimensions of objects in an image.
+
+    Args:
+        data_locations (list): A list of tuples where each tuple contains two points (top left and bottom right) that define
+                              the location of an object in the image.
+        image_height (int): The height of the image.
+        image_width (int): The width of the image.
+        offset (int, optional): The offset to add to the x coordinate of the bounding box. Defaults to 0.
+
+    Returns:
+        numpy.ndarray: An array where each row corresponds to an object and contains 4 elements:
+                       - The y-coordinate of the center of the object (normalized to [0,1]).
+                       - The x-coordinate of the center of the object (normalized to [0,1]).
+                       - The height of the object (normalized to [0,1]).
+                       - The width of the object (normalized to [0,1]).
+    """
+
     data_locations = np.array(data_locations)
     data_locations2 = np.zeros((data_locations.shape[0],4))
-    data_locations2[:,2] = (data_locations[:,1,1] - data_locations[:,0,1])/dim0
-    data_locations2[:,3] = (data_locations[:,1,0] - data_locations[:,0,0])/dim1
-    data_locations2[:,0] = (data_locations[:,1,1] + data_locations[:,0,1])/(2*dim0)
-    data_locations2[:,1] = ((data_locations[:,1,0] + data_locations[:,0,0])/2 + offset) / dim1
+    data_locations2[:,2] = (data_locations[:,1,1] - data_locations[:,0,1])/image_height
+    data_locations2[:,3] = (data_locations[:,1,0] - data_locations[:,0,0])/image_width
+    data_locations2[:,0] = (data_locations[:,1,1] + data_locations[:,0,1])/(2*image_height)
+    data_locations2[:,1] = ((data_locations[:,1,0] + data_locations[:,0,0])/2 + offset) / image_width
     return data_locations2
 
-# Checks if screen, cover or guard there is cap between arrow and letter or not. If there is cap between them,
-# then we can't take the first column where there are no black pixels.
 def find_cap(img, excess_str = 120):
+    """
+    Find the location of the cap between letters C/G/S in symbol
+
+    Args:
+        img (numpy.ndarray): A grayscale image represented as a 2D numpy array.
+        excess_str (int): The threshold value for what is considered a "white" pixel.
+
+    Returns:
+        Tuple of left and right bounds of the capital letter in the image.
+    """
+
+    if not isinstance(img, np.ndarray):
+        raise TypeError("img must be a numpy array")
+    if not 0 <= excess_str <= 255:
+        raise ValueError("excess_str must be between 0 and 255")
     values = np.argwhere(np.amin(img,axis=0) > excess_str)
 
     val_prev = values[0][0]
@@ -248,10 +304,33 @@ def rotate_img(img, rotation,padding_value=255):
     img_rotated = ndimage.rotate(img, rotation, mode='constant',cval=padding_value)
     return img_rotated
 
-# Adds unit symbol in the middle of screen, cover and guard.
 def add_unit_symbol_in_middle(img, scale, sample_units, manuever_units,
                                             support_units, resizable, resizable_horizontal,
                                             resizable_vertical, unit_sizes):
+    
+    """
+    Add a unit symbol in the middle of the image.
+
+    Parameters:
+    image (np.ndarray): The input image.
+    scale (float): The scale of the unit symbol.
+    sample_units (dir): The dictionary containing unit symbol samples.
+    maneuver_units (list): A list of maneuver units.
+    support_units (list): A list of support units.
+    resizable (list): A lsit of resizable symbols.
+    resizable_horizontal (list): A lsit of resizable horizontal symbols.
+    resizable_vertical (list): A list of resizable vertical symbols.
+    unit_sizes (list): A list of unit sizes.
+
+    Returns:
+    tuple: A tuple containing the following elements:
+        - The output image with the unit symbol in the middle.
+        - The label of the unit.
+        - The rotation angle in degrees.
+        - The top-left point of the image without symbol.
+        - The bottom-right point of the image without symbol.
+    """
+    
     #Cut excess white from edges
     img = cut_excess_white(img)
 
@@ -341,26 +420,27 @@ def get_noise_img(sample_extras):
     noise_img = get_random('noise', sample_extras)
     noise_img = resize_by_scale(noise_img, 0.17)
     return noise_img
-"""
-def get_overlapping_support_by_fire(scale, sample):
-    img1 = np.copy(np.copy(sample[200]))
 
-    return 
-"""
+def get_exercise_text(scale, sample, language):
 
-def get_exercise_text(scale, sample, language):   
+    """
+    Generates an image of the word 'exercise' in English or Estonian.
+
+    Args:
+        scale (float): The scale factor to resize the images.
+        sample (dict): A dictionary of images.
+        language (str): The language of the text. Either 'en' for English or 'et' for Estonian.
+
+    Returns:
+        np.ndarray: The image of the text.
+    """
+
     letters_dic = {}
     max_height = 0
     length = 0
     if language == 'en':
         letters = ['e','x','e','r','c','i','s','e']
-        """
-        if randint(0,1) == 1:
-            letters = ['e','x','e','r','c','i','s','e']
-        else:
-            letters = ['e','x']
-        """
-    else: #language == 'et'
+    else:
         letters = ['oline','p','p','u','s']
     for letter in set(letters):
         letter_img = get_random(letter, sample)
@@ -369,15 +449,19 @@ def get_exercise_text(scale, sample, language):
             max_height = letter_img.shape[0]
         length += letter_img.shape[1]
         letters_dic[letter] = letter_img
+    
     max_height += 3
+
     if language == 'en':
         length += int(7*6) #Add 4pixels between symbols
         length += int(letters_dic['e'].shape[1]*2)
     else:
         length += int(4*6)
         length += letters_dic['p'].shape[1]
+    
     text_img = np.full((max_height,length),255)
     pointer = 0
+
     for letter in letters:
         text_img = place_symbol(text_img, letters_dic[letter],randint(0,3),pointer)
         pointer+=letters_dic[letter].shape[1]+6
@@ -386,23 +470,16 @@ def get_exercise_text(scale, sample, language):
 
 def place_exercise_text(canvas, scale, sample, language = None):
     """
-    Place the "exercise/õppus" text in top and bottom of the image.
+    Places the text 'exercise' in English or Estonian on an image.
 
-    Parameters
-    ----------
-    canvas : numpy.ndarray
-        The image to where the text will be added.
-    scale : float
-        The scale of the placed text.
-    sample : dictionary
-        The dictionary which will contain the symbols.
-    language : str : Optional
-        The language in which the "exercise" text will be added.
+    Args:
+        canvas (np.ndarray): The input image to place the text on.
+        scale (float): The scale factor to resize the images.
+        sample (dict): A dictionary of images.
+        language (str, optional): The language of the text. Either 'en' for English or 'et' for Estonian. Defaults to a random language.
 
-    Returns
-    -------
-    numpy.ndarray
-        The image with added text.
+    Returns:
+        np.ndarray: The image with the placed text.
     """
 
     if not isinstance(canvas, np.ndarray):
