@@ -127,31 +127,81 @@ def check_overlap(point1,point2,locations, symbol_shape = (1,1),max_overlap=50):
             break
     return is_overlap
 
-# Read the symbol images into dictionary
-def read_into_dic(directory, re_in, output_dir = None):
+def read_into_dic(directory, re_in, output_dir = None, excess_str = 100):
+    """
+    Reads all images in a directory and returns them as a dictionary of numpy arrays where keys are the labels.
+
+    Args:
+        directory (str): The path to the directory containing the images to read.
+        re_in (str): The regular expression pattern to match the label in the filename of each image.
+        output_dir (dic, optional): The output dictionary where the images will be stored. If none is given, then the new dictioanry will be greated.
+        excess_str (int, optional): The threshold value.
+
+    Returns:
+        Dic: A dictionary containing of numpy arrays representing the images, and the keys are labels corresponding to iamges in the array.
+
+    Raises:
+        FileNotFoundError: If the directory does not exist.
+    """
+
+    if not os.path.isdir(directory):
+        raise FileNotFoundError(f"Directory '{directory}' does not exist.")
+
+    # Check if the directory is given. If given then add to the existing directory,
     if output_dir == None:
         output_dir = {}
     for filename in os.listdir(directory+"/"):
-        img = cv2.imread(directory+"/" + filename,0)
-        img[img <= 100] = 0
-        img[img > 100] = 255
+        # Check if file is an image
+        if not filename.endswith(('.jpg', '.jpeg', '.png')):
+            continue
+        
+        img = cv2.imread(os.path.join(directory, filename), cv2.IMREAD_GRAYSCALE)
+
+        if img is None:
+            continue
+
+        img = cv2.threshold(img, excess_str, 255, cv2.THRESH_BINARY)[1]
         img = cut_excess_white(img)
         key = re.findall(re_in, filename)[0]
+
         if key in output_dir:
             output_dir[key].append(img)
         else:
             output_dir[key] = [img]
     return output_dir
 
-# Read the symbol images into list
-def read_into_list(directory, re_in):
+def read_into_list(directory, re_in, excess_str = 100):
+    """
+    Reads all images in a directory and returns them as a list of numpy arrays, along with their corresponding labels.
+
+    Args:
+        directory (str): The path to the directory containing the images to read.
+        re_in (str): The regular expression pattern to match the label in the filename of each image.
+        excess_str (int, optional): The threshold value.
+
+    Returns:
+        Tuple: A tuple containing a list of numpy arrays representing the images, and a list of labels corresponding to each image.
+
+    Raises:
+        FileNotFoundError: If the directory does not exist.
+    """
+
+    if not os.path.isdir(directory):
+        raise FileNotFoundError(f"Directory '{directory}' does not exist.")
+
     output_list = []
     output_labels = []
     for filename in os.listdir(directory+'/'):
-        img = cv2.imread(directory+'/' + filename,0)
-        img[img <= 100] = 0
-        img[img > 100] = 255
-        #Remove excess rows and columns that appeared after rotation and padding
+        # Check if file is an image
+        if not filename.endswith(('.jpg', '.jpeg', '.png')):
+            continue
+        
+        img = cv2.imread(os.path.join(directory, filename), cv2.IMREAD_GRAYSCALE)
+
+        if img is None:
+            continue
+
+        img = cv2.threshold(img, excess_str, 255, cv2.THRESH_BINARY)[1]
         img = cut_excess_white(img)
         output_list.append(img)
         output_labels.append(re.findall(re_in, filename)[0])
@@ -159,7 +209,6 @@ def read_into_list(directory, re_in):
     return output_list, output_labels
 
 def resize_by_scale(img, scale):
-
     """
     Resize the image by scale
     """
@@ -173,7 +222,6 @@ def resize_by_scale(img, scale):
     return img
 
 def cut_excess_white(img, excess_str = 120):
-
     """
     Remove excess rows and columns from img
     """
@@ -197,7 +245,6 @@ def read_in_labels(file):
     return labels_to_nr
 
 def get_labels(label, labels_to_nr):
-
     """
     Return numerical value of the label
     """
@@ -208,7 +255,6 @@ def get_labels(label, labels_to_nr):
     return labels_to_nr[label]
 
 def get_locations(data_locations, image_height, image_width, offset = 0):
-
     """
     Computes normalized locations and dimensions of objects in an image.
 
@@ -307,7 +353,6 @@ def rotate_img(img, rotation,padding_value=255):
 def add_unit_symbol_in_middle(img, scale, sample_units, manuever_units,
                                             support_units, resizable, resizable_horizontal,
                                             resizable_vertical, unit_sizes):
-    
     """
     Add a unit symbol in the middle of the image.
 
@@ -422,7 +467,6 @@ def get_noise_img(sample_extras):
     return noise_img
 
 def get_exercise_text(scale, sample, language):
-
     """
     Generates an image of the word 'exercise' in English or Estonian.
 
