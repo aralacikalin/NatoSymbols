@@ -480,7 +480,8 @@ def get_locations(data_locations : List[Tuple[Tuple[int,int],Tuple[int,int]]],
     data_locations2[:,1] = ((data_locations[:,1,0] + data_locations[:,0,0])/2 + offset) / image_width
     return data_locations2
 
-def find_cap(img, excess_str = 120):
+def find_cap(img : np.ndarray,
+             excess_str : Optional[int] = 120) -> Tuple[int,int]:
     """
     Find the location of the cap between letters C/G/S in symbol
 
@@ -492,10 +493,6 @@ def find_cap(img, excess_str = 120):
         Tuple of left and right bounds of the capital letter in the image.
     """
 
-    if not isinstance(img, np.ndarray):
-        raise TypeError("img must be a numpy array")
-    if not 0 <= excess_str <= 255:
-        raise ValueError("excess_str must be between 0 and 255")
     values = np.argwhere(np.amin(img,axis=0) > excess_str)
 
     val_prev = values[0][0]
@@ -521,53 +518,49 @@ def find_cap(img, excess_str = 120):
     right = values[cuts[loc]-1][0]
     return left, right
 
-def rotate_img(img, rotation,padding_value=255):
+def rotate_img(img : np.ndarray,
+               rotation : int,
+               padding_value : Optional[int] = 255) -> np.ndarray:
     """
     Rotate an image by a given angle.
 
-    Parameters
-    ----------
-    img : numpy.ndarray
-        The image to be rotated.
-    rotation : float
-        The rotation angle in degrees.
-    padding_val : int, optional
-        The value to use for padding. Default is 255.
+    Parameters:
+        img : The image to be rotated.
+        rotation : The rotation angle in degrees.
+        padding_val : The value to use for padding.
 
-    Returns
-    -------
-    numpy.ndarray
+    Returns:
         The rotated image.
     """
-
-    if not isinstance(img, np.ndarray):
-        raise TypeError("img must be a NumPy array")
-
-    if not isinstance(rotation, (int, float)):
-        raise TypeError("rotation must be a number")
     
     img_rotated = ndimage.rotate(img, rotation, mode='constant',cval=padding_value)
     return img_rotated
 
-def add_unit_symbol_in_middle(img, scale, sample_units, manuever_units,
-                                            support_units, resizable, resizable_horizontal,
-                                            resizable_vertical, unit_sizes):
+def add_unit_symbol_in_middle(img : np.ndarray,
+                              scale : float,
+                              sample_units : Dict[str,List[np.ndarray]],
+                              manuever_units : List[str],
+                              support_units : List[str],
+                              resizable : List[str],
+                              resizable_horizontal : List[str],
+                              resizable_vertical : List[str],
+                              unit_sizes : List[str]) -> Tuple[np.ndarray, str, int, Tuple[int,int], Tuple[int,int]]:
     """
     Add a unit symbol in the middle of the image.
 
     Parameters:
-    image (np.ndarray): The input image.
-    scale (float): The scale of the unit symbol.
+    image : The input image (cover/guard/screen symbol).
+    scale (float): The scaling factor.
     sample_units (dir): The dictionary containing unit symbol samples.
     maneuver_units (list): A list of maneuver units.
     support_units (list): A list of support units.
     resizable (list): A lsit of resizable symbols.
     resizable_horizontal (list): A lsit of resizable horizontal symbols.
     resizable_vertical (list): A list of resizable vertical symbols.
-    unit_sizes (list): A list of unit sizes.
+    unit_sizes (list): A list of unit sizes from which to sample.
 
     Returns:
-    tuple: A tuple containing the following elements:
+        A tuple containing the following elements:
         - The output image with the unit symbol in the middle.
         - The label of the unit.
         - The rotation angle in degrees.
@@ -600,6 +593,8 @@ def add_unit_symbol_in_middle(img, scale, sample_units, manuever_units,
     
     # Place the unit symbol into middle
     img2 = place_symbol(img2, unit_symbol, 0, left+7)
+    # We will also do the same operations for additional image with a dummy symbol.
+    # This is needed to get the cover/guard/screen locations without unit_symbol
     img3 = copy.deepcopy(img2)
     # Place the left side of the screen/cover/guard
     img2 = place_symbol(img2, img[:,0:left], ceil(unit_symbol.shape[0]/2),0)
@@ -639,40 +634,84 @@ def add_unit_symbol_in_middle(img, scale, sample_units, manuever_units,
     
     return img2_float, unit_lab, rotation, point1, point2
 
-def get_points_after_rotation(point, rotation):
+"""
+def get_points_after_rotation(point : Tuple[int,int],
+                              rotation : int) -> Tuple[int,int]:
     x = point[1]*cos(radians(rotation))-point[0]*sin(radians(rotation))
     y = point[1]*sin(radians(rotation))+point[0]*cos(radians(rotation))
     return (y,x)
+"""
 
-def get_mortar_area_img(number, scale, sample_extras):
+def get_mortar_area_img(number : int,
+                        scale : float,
+                        sample_extras : Dict[str,List[np.ndarray]]) -> np.ndarray:
+    """
+    Samples a mortar area image given the number.
+
+    Args:
+        number : The number for mortar area.
+        scale : The scale factor.
+        sample_extras : The dictionary containg the images.
+    
+    Return:
+        The mortar area image.
+    """
+    # Sample a random circle
     mortar_img = get_random('mortar', sample_extras)
+    # Sample a random letter m
     m_letter = get_random('m', sample_extras)
     m_letter = cv2.resize(m_letter, (int(m_letter.shape[1]*0.5),int(m_letter.shape[0]*0.5)))
+    # Sample a random number image
     number = get_random(str(number), sample_extras)
     number = cv2.resize(number, (int(number.shape[1]*0.5),int(number.shape[0]*0.5)))
+    # Get a center of circle
     center = (int(mortar_img.shape[0]/2),int(mortar_img.shape[1]/2))
+    # Place the m and number
     mortar_img = place_symbol(mortar_img, m_letter, center[0]-int(m_letter.shape[0]/2),center[1]-10-m_letter.shape[1])
     mortar_img = place_symbol(mortar_img, number, center[0]-int(number.shape[0]/2),center[1]+10)
     mortar_img = cv2.resize(mortar_img, (int(mortar_img.shape[1]*scale),int(mortar_img.shape[0]*scale)))
     return mortar_img
 
-def get_random(label, sample):
+def get_random(label : str,
+               sample : Dict[str,List[np.ndarray]]) -> np.ndarray:
+    """
+    Chooses random image from the sample list given the label.
+
+    Args:
+        label : The specific images from which we wish to sample.
+        sample : The dictionary containing the images.
+
+    Return:
+        Sampled image which correspons to label.
+    """
+
     imgs = sample[label]
     return np.copy(imgs[randint(0,len(imgs)-1)])
 
-def get_noise_img(sample_extras):
+def get_noise_img(sample_extras : Dict[str,List[np.ndarray]]) -> np.ndarray:
+    """
+    Like get_random but with predefined scale for the image. Used to keep the main code shorter.
+
+    Args:
+        sample : The dictionary containing the images.
+
+    Return:
+        Sampled image of noise.
+    """
     noise_img = get_random('noise', sample_extras)
     noise_img = resize_by_scale(noise_img, 0.17)
     return noise_img
 
-def get_exercise_text(scale, sample, language):
+def get_exercise_text(scale : float,
+                      sample : Dict[str,List[np.ndarray]],
+                      language : str) -> np.ndarray:
     """
     Generates an image of the word 'exercise' in English or Estonian.
 
     Args:
-        scale (float): The scale factor to resize the images.
-        sample (dict): A dictionary of images.
-        language (str): The language of the text. Either 'en' for English or 'et' for Estonian.
+        scale : The scale factor to resize the images.
+        sample : A dictionary which contains letters images.
+        language : The language of the text. Either 'en' for English or 'et' for Estonian.
 
     Returns:
         np.ndarray: The image of the text.
@@ -711,18 +750,21 @@ def get_exercise_text(scale, sample, language):
 
     return text_img
 
-def place_exercise_text(canvas, scale, sample, language = None):
+def place_exercise_text(canvas : np.ndarray,
+                        scale : float,
+                        sample: Dict[str,List[np.ndarray]],
+                        language : Optional[str] = None) -> np.ndarray:
     """
     Places the text 'exercise' in English or Estonian on an image.
 
     Args:
-        canvas (np.ndarray): The input image to place the text on.
-        scale (float): The scale factor to resize the images.
-        sample (dict): A dictionary of images.
-        language (str, optional): The language of the text. Either 'en' for English or 'et' for Estonian. Defaults to a random language.
+        canvas : The input image to place the text on.
+        scale : The scale factor to resize the images.
+        sample : A dictionary of images.
+        language : The language of the text. Either 'en' for English or 'et' for Estonian. Defaults to a random language.
 
     Returns:
-        np.ndarray: The image with the placed text.
+        The image with the placed text.
     """
 
     if not isinstance(canvas, np.ndarray):
@@ -752,40 +794,71 @@ def place_exercise_text(canvas, scale, sample, language = None):
 
     return canvas
 
-def inverse(img, binary_threshold=110):
+def inverse(img : np.ndarray,
+            binary_threshold : Optional[int] = 110) -> np.ndarray:
     """
     Inverse the black and white pixels of an image.
 
-    Parameters
-    ----------
-    img : numpy.ndarray
-        The image to be rotated.
-    rotation : float
-        The rotation angle in degrees.
-    binary_threshold : int, optional
-        The value to from which the threshold is applied Default is 255.
+    Parameters:
+        img : The image to be rotated.
+        rotation : The rotation angle in degrees.
+        binary_threshold : The value to from which the threshold is applied Default is 255.
 
-    Returns
-    -------
-    numpy.ndarray
+    Returns:
         The inverse image.
     """
 
-    if not isinstance(img, np.ndarray):
-        raise TypeError("img must be a NumPy array")
-    # Check if the given threshold is in limits
-    if not 0 <= binary_threshold <= 255:
-        raise ValueError("binary_threshold must be between 0 and 255")
     # Set the background pixels to 0 and symbols pixels to 255
     img = np.where(img <= binary_threshold, 255, 0)
     return img
 
-# Agument the image
-def augment(img, remove_excess = True, excess_str = 110, apply_flip = False,
-            flip_random = True, apply_rotation = False, rotation = None,
-            padding_val = 255, apply_transformation = False, transformation_dir = None,
-            apply_boldness = False, boldness_dir = None, boldness_str = None, add_noise = False,
-            noise_threshold = 0.999, scale_to_binary = False, binary_threshold = 110, invert = False, normalize = False):
+def augment(img : np.ndarray,
+            remove_excess : Optional[bool] = True,
+            excess_str : Optional[int] = 110,
+            apply_flip : Optional[bool] = False,
+            flip_random : Optional[bool] = True,
+            apply_rotation : Optional[bool] = False,
+            rotation : Optional[int] = None,
+            padding_val : Optional[int] = 255,
+            apply_transformation : Optional[bool] = False,
+            transformation_dir : Optional[int] = None,
+            apply_boldness : Optional[bool] = False,
+            boldness_dir : Optional[int] = None,
+            boldness_str : Optional[int] = None,
+            add_noise : Optional[bool] = False,
+            noise_threshold  : Optional[float] = 0.999,
+            scale_to_binary : Optional[bool] = False,
+            binary_threshold : Optional[int] = 110,
+            invert : Optional[bool] = False,
+            normalize : Optional[bool] = False) -> np.ndarray:
+    """
+    Augments the given image
+
+    Args:
+        img : The image to be augmented.
+        remove_excess : A boolean indicating whether to remove excess rows and columns that appeared after rotation and padding.
+        excess_str : The upper value of grayscale pixel for which is not consider a background.
+        apply_flip : A boolean indicating whether to flip the image along the vertical axis.
+        flip_random : A boolean indicating whether to randomly flip the image. 
+        apply_rotation : A boolean indicating whether to apply random rotation to the image.
+        rotation : An integer indicating the value of rotation angle.
+        padding_val : An integer indicating the padding value to be used.
+        apply_transformation : A boolean indicating whether to apply affine transformation to the image.
+        transformation_dir : An integer indicating the direction of transformation.
+        apply_boldness : A boolean indicating whether to apply dilation or erosion to the image.
+        boldness_dir : An integer indicating the direction of dilation or erosion.
+        boldness_str : An integer indicating the strength of dilation or erosion.
+        add_noise : A boolean indicating whether to add random noise to the image.
+        noise_threshold  : A float indicating the threshold for adding noise.
+        scale_to_binary : A boolean indicating whether to scale the image to binary.
+        binary_threshold : An integer indicating the threshold for scaling to binary.
+        invert : A boolean indicating whether to invert the image
+        normalize :  A boolean indicating whether to normalize the image.
+    
+    Return:
+        img : The augmented image.
+        rotation : The rotation angle of the image
+    """
       
     #Select random image subclass
     #Randomize the size of the image
