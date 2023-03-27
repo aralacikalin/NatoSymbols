@@ -25,14 +25,7 @@ def place_symbol(canvas : np.ndarray,
 
     Returns:
         canvas: A image with placed symbol.
-
-    Raises:
-        IndexError: If the symbol would go out of bounds for given point.
-
     """
-
-    if not ((point1+symbol.shape[0] > canvas.shape[0]) or ((point2+symbol.shape[1] > canvas.shape[1]))):
-        raise IndexError("The symbol does not fit onto the canvas")
 
     canvas[point1:point1+symbol.shape[0],point2:point2+symbol.shape[1]][symbol < 140] = 0
     return canvas
@@ -79,7 +72,7 @@ def get_points(dim : Tuple[int,int],
 
 def get_grid_numbers(grid : int,
                      scale : float,
-                     sample_extras : Dict[str,np.ndarray]) -> Tuple[np.ndarray,np.ndarray]:
+                     sample_extras : Dict[str,List[np.ndarray]]) -> Tuple[np.ndarray,np.ndarray]:
     """
     Samples the grid number images.
 
@@ -108,7 +101,7 @@ def add_grid_number(canvas : np.ndarray,
                     sample_extras : Dict[str,np.ndarray],
                     scale : Optional[float] = 0.5) -> np.ndarray:
     """
-    Adds the grid numbers for placement symbol onto the canvas
+    Adds the grid numbers for placement symbol onto the canvas. Adds on left of the symbol.
 
     Args:
         canvas : The overall image which is generated. The numbers will be palced onto that.
@@ -121,7 +114,7 @@ def add_grid_number(canvas : np.ndarray,
         scale : The scaling factor for the grid number.
     
     Return:
-        Canvas images with placed numbers.
+        Canvas image with placed numbers.
     """
     first_number, second_number = get_grid_numbers(grid, scale, sample_extras)
     point1_1 = offset0+point1-int(first_number.shape[0]/2)
@@ -136,10 +129,23 @@ def add_grid_number2(canvas : np.ndarray,
                     offset1 : int,
                     grid : int,
                     placement : np.ndarray,
-                    sample_extras : Dict[str,np.ndarray],
+                    sample_extras : Dict[str,List[np.ndarray]],
                     scale : Optional[float] = 0.5) -> np.ndarray:
     """
-    Adds the grid numbers for placement symbol onto the canvas
+    Adds the grid numbers for placement symbol onto the canvas. Adds on bottom of the symbol.
+
+    Args:
+        canvas : The overall image which is generated. The numbers will be palced onto that.
+        point2 : The width on placment symbol where the number will be added
+        offset0 : The offset along the y-axis (height).
+        offset1 : The offset along the x-axis (width).
+        grid : The MGRS grid number
+        placement :  The placement symbol for which the numbers will be added.
+        sample_extras : The dictionary which will contain the numbers images.
+        scale : The scaling factor for the grid number.
+    
+    Return:
+        Canvas image with placed numbers.
     """
     first_number, second_number = get_grid_numbers(grid, scale, sample_extras)
     point1_1 = offset0+placement.shape[0]+10
@@ -148,9 +154,30 @@ def add_grid_number2(canvas : np.ndarray,
     canvas = place_symbol(canvas, second_number, point1_1, point2_1+10)
     return canvas
 
-# Draws the random (non-straight) line given the center of it.
-def draw_line(canvas, point1, point2, rotation, side, img):
+def draw_line(canvas : np.ndarray,
+              point1 : int,
+              point2 : int,
+              rotation : int,
+              side : int,
+              img : np.ndarray) -> np.ndarray:
+    """
+    Drawns onse-side of the line trough the given symbol (img).
+
+    Args:
+        canvas : The overall image which is generated. The numbers will be palced onto that.
+        point1 : The img upper edfe locations on canvas
+        point1 : The img left edge locations on canvas
+        rotation : The rotation of the image.
+        side : Values can be (1 & -1). Indicator for which side (left or right) of the line will be drawn.
+        img : The symbol.
+    
+    Return:
+        Canvas image with drawn line.
+    """
+
+    # Find the center of the symbol. Will be the center of line
     center = [int(point1+img.shape[0]/2), int(point2+img.shape[1]/2)]
+    # Keep track of drawing to make sure we don't go out of bounds
     max_lengths = np.zeros((2,2),dtype="i")
     max_lengths[0,1] = -canvas.shape[0]+center[0] #Up
     max_lengths[0,0] = -canvas.shape[1]+center[1] #Right
@@ -159,7 +186,9 @@ def draw_line(canvas, point1, point2, rotation, side, img):
     prev_point = center
     rotation = rotation + side*90
     for i in range(0,randint(3,6)):
+        #Random lenght of the line
         line_length = randint(70,150)
+        # Get the next points location
         point2_1, point1_1 = point_location(rotation,(line_length,line_length),prev_point,(1,1))
         new_point = np.array((point1_1,point2_1))
 
@@ -168,13 +197,28 @@ def draw_line(canvas, point1, point2, rotation, side, img):
         if (max_lengths[0,0] > 0 and max_lengths[0,1] > 0 and max_lengths[1,0] < 0 and max_lengths[1,1] < 0):
             break
         canvas = canvas.astype(np.uint8).copy()
+        # For cv2 draw the x-axis (width) is first.
         cv2.line(canvas, (prev_point[1],prev_point[0]), (new_point[1],new_point[0]), 0, 9)
         prev_point = new_point
         rotation = rotation+randint(-20,20)
     return canvas
 
-# Given the rotation finds the upper left point on canvas where to place the unit symbol for given tactical task.
-def point_location(rotation,symbol_shape,center,unit_symbol_shape):
+def point_location(rotation : int,
+                   symbol_shape : Tuple[int,int],
+                   center : Tuple[int,int],
+                   unit_symbol_shape : Tuple[int,int]) -> Tuple[int,int]:
+    """
+    Given the rotation finds the upper left point on canvas where to place the unit symbol for given tactical task.
+
+    Args:
+        rotation : The symbols (tactical task) rotation
+        symbol_shape : The dimensions of symbol image
+        cetner : The center of the symbol
+        unit_symbol_shape : The shape of the unit symbol
+    
+    Return:
+        The upper left point for the unit_symbol
+    """
     x = center[1]
     y = center[0]
     
@@ -201,9 +245,24 @@ def point_location(rotation,symbol_shape,center,unit_symbol_shape):
         x -= x2
     return x,y
 
-# Checks if there is overlap. If max_overlap = 50 and the overlap between two symbols is 30 pixels in
-# vertical or/and horizontal axis then return false.
-def check_overlap(point1,point2,locations, symbol_shape = (1,1),max_overlap=50):
+def check_overlap(point1 : int,
+                  point2 : int,
+                  locations : List[Tuple[Tuple[int,int],Tuple[int,int]]],
+                  symbol_shape : Tuple[int,int],
+                  max_overlap : Optional[int] = 50) -> bool:
+    """
+    Given a symbol and the locations, check if the symbol overlaps with any.
+
+    Args:
+        point1 : The upper edge locations for symbol
+        point2 : The left edge locations for the symbol
+        locations : The locations of the current symbols on canvas
+        symbol_shape : The shape of the symbol
+        max_overlap : The maximum overlap in pixels which is allowed along the axis.
+    
+    Return:
+        The boolean value whether there is overlap
+    """
     is_overlap = False
     for location in locations:
         if ((point1 < location[1][0]-max_overlap) and
@@ -214,18 +273,21 @@ def check_overlap(point1,point2,locations, symbol_shape = (1,1),max_overlap=50):
             break
     return is_overlap
 
-def read_into_dic(directory, re_in, output_dir = None, excess_str = 100):
+def read_into_dic(directory : str,
+                  re_in : str,
+                  output_dir : Optional[Dict[str,List[np.ndarray]]] = None,
+                  excess_str : Optional[int] = 100) -> Dict[str,List[np.ndarray]]:
     """
-    Reads all images in a directory and returns them as a dictionary of numpy arrays where keys are the labels.
+    Reads all images in a directory into a dictionary and returns them as the dictionary of numpy arrays where the labels are keys.
 
     Args:
-        directory (str): The path to the directory containing the images to read.
-        re_in (str): The regular expression pattern to match the label in the filename of each image.
-        output_dir (dic, optional): The output dictionary where the images will be stored. If none is given, then the new dictioanry will be greated.
-        excess_str (int, optional): The threshold value.
+        directory : The path to the directory containing the images to read.
+        re_in : The regular expression pattern to match the label in the filename of each image.
+        output_dir : The output dictionary where the images will be stored. If none is given, then the new dictioanry will be greated.
+        excess_str : The threshold value.
 
     Returns:
-        Dic: A dictionary containing of numpy arrays representing the images, and the keys are labels corresponding to images in the array.
+        A dictionary containing of numpy arrays representing the images, and the keys are labels corresponding to images in the array.
 
     Raises:
         FileNotFoundError: If the directory does not exist.
@@ -257,17 +319,19 @@ def read_into_dic(directory, re_in, output_dir = None, excess_str = 100):
             output_dir[key] = [img]
     return output_dir
 
-def read_into_list(directory, re_in, excess_str = 100):
+def read_into_list(directory : str,
+                   re_in : str,
+                   excess_str : Optional[int] = 100) -> Tuple[List[np.ndarray],List[str]]:
     """
-    Reads all images in a directory and returns them as a list of numpy arrays, along with their corresponding labels.
+    Reads all images in a directory and returns them as a list of numpy arrays, along with their corresponding labels list.
 
     Args:
-        directory (str): The path to the directory containing the images to read.
-        re_in (str): The regular expression pattern to match the label in the filename of each image.
-        excess_str (int, optional): The threshold value.
+        directory : The path to the directory containing the images to read.
+        re_in : The regular expression pattern to match the label in the filename of each image.
+        excess_str : The threshold value.
 
     Returns:
-        Tuple: A tuple containing a list of numpy arrays representing the images, and a list of labels corresponding to each image.
+        A tuple containing a list of numpy arrays representing the images, and a list of labels corresponding to each image.
 
     Raises:
         FileNotFoundError: If the directory does not exist.
@@ -295,22 +359,46 @@ def read_into_list(directory, re_in, excess_str = 100):
 
     return output_list, output_labels
 
-def resize_by_scale(img, scale):
+def resize_by_scale(img : np.ndarray,
+                    scale : float) -> np.ndarray:
     """
     Resize the image by scale
+
+    Args:
+        img : The image to be scaled.
+        scale : The scale factor.
+    
+    Returns:
+        The scaled iamge
+    
+    Raises:
+        TypeError: If the image is not numpy.ndarray
+        TypeError: If the scale is not a number.
     """
 
     if not isinstance(img, np.ndarray):
         raise TypeError("img must be a numpy array")
-    if not isinstance(scale, (int, float)):
-        raise TypeError("scale must be int or float")
+    if not isinstance(scale, float):
+        raise TypeError("scale must be a float")
 
     img = cv2.resize(img, (int(img.shape[1]*scale),int(img.shape[0]*scale)))
     return img
 
-def cut_excess_white(img, excess_str = 120):
+def cut_excess_white(img : np.ndarray,
+                     excess_str : Optional[int] = 120) -> np.ndarray:
     """
-    Remove excess rows and columns from img
+    Removes excess rows and columns from a image edges.
+
+    Args:
+        img : The image for which the excess edges will be removed.
+        excess_str : The upper value of grayscale pixel for which is not consider a background.
+    
+    Returns:
+        The image without excessive columns and rows on the edges.
+    
+    Raises:
+        TypeError: If the image is not numpy.ndarray.
+        ValueError: When the excess_str is not between 0 and 255.
     """
 
     if not isinstance(img, np.ndarray):
@@ -322,7 +410,18 @@ def cut_excess_white(img, excess_str = 120):
     img = img[:,np.argwhere(np.amin(img,axis=0) < excess_str)[0][0]:np.argwhere(np.amin(img,axis=0) < excess_str)[-1][0]]
     return img
 
-def read_in_labels(file):
+def read_in_labels(file : str) -> Dict[str,int]:
+    """
+    Reads in the labels file and assigns the numeric value for each label. The numeric value is the labels row in the file.
+
+    Args:
+        file : The file which contains the labels as string
+
+    Returns:
+        The dictionary where the key is label and value if integer.
+    
+    TODO file type checking 
+    """
     labels_to_nr = {}
     i = 0
     with open(file) as f:
@@ -331,9 +430,20 @@ def read_in_labels(file):
             i += 1
     return labels_to_nr
 
-def get_labels(label, labels_to_nr):
+def get_labels(label : str,
+               labels_to_nr : Dict[str,int]) -> int:
     """
     Return numerical value of the label
+
+    Args:
+        label : The label for which the numerical value is given
+        labels_to_nr : The dictionary which maps the string to integers
+
+    Return:
+        Label as integer
+    
+    Raises:
+        TypeError: The label is not string
     """
 
     if not isinstance(label, str):
@@ -341,23 +451,25 @@ def get_labels(label, labels_to_nr):
 
     return labels_to_nr[label]
 
-def get_locations(data_locations, image_height, image_width, offset = 0):
+def get_locations(data_locations : List[Tuple[Tuple[int,int],Tuple[int,int]]],
+                  image_height : int, image_width : int,
+                  offset : Optional[int] = 0) -> np.ndarray:
     """
     Computes normalized locations and dimensions of objects in an image.
 
     Args:
-        data_locations (list): A list of tuples where each tuple contains two points (top left and bottom right) that define
+        data_locations : A list of tuples where each tuple contains two points (top left and bottom right) that define
                               the location of an object in the image.
-        image_height (int): The height of the image.
-        image_width (int): The width of the image.
-        offset (int, optional): The offset to add to the x coordinate of the bounding box. Defaults to 0.
+        image_height : The height of the image (canvas).
+        image_width : The width of the image (canvas).
+        offset : The offset to add to the y coordinate of the bounding box. Used when the image is padded to square
 
     Returns:
-        numpy.ndarray: An array where each row corresponds to an object and contains 4 elements:
-                       - The y-coordinate of the center of the object (normalized to [0,1]).
-                       - The x-coordinate of the center of the object (normalized to [0,1]).
-                       - The height of the object (normalized to [0,1]).
-                       - The width of the object (normalized to [0,1]).
+        An array where each row corresponds to an object and contains 4 elements:
+        - The y-coordinate of the center of the object (normalized to [0,1]).
+        - The x-coordinate of the center of the object (normalized to [0,1]).
+        - The height of the object (normalized to [0,1]).
+        - The width of the object (normalized to [0,1]).
     """
 
     data_locations = np.array(data_locations)
