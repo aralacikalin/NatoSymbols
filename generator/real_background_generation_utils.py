@@ -32,7 +32,8 @@ def normalizePoints(boundingBoxesToRemove,dim,newDim):
 
 def generate_image_with_real_background(boundingBoxesToRemove,real_symbols_ratio,sample_real,sample_real_Clean,sample,canvas,
                    dim,
-                   generator_dim=(4624,3468)):
+                   generator_dim=(4624,3468),
+                   real_symbols_in_real_backgrounds=False):
     # canvas = np.full(dim, 255) #Size of final image
     canvas=canvas.copy()
 
@@ -93,7 +94,7 @@ def generate_image_with_real_background(boundingBoxesToRemove,real_symbols_ratio
         img = get_random(label, sample)
         img = resize_by_scale(img, img_scale)
 
-        if random.uniform(0, 1) > real_symbols_ratio:
+        if random.uniform(0, 1) > real_symbols_ratio or not real_symbols_in_real_backgrounds:
                 img = get_random(label, sample)
                 from_real_film = False
                 img = resize_by_scale(img, img_scale*0.8)

@@ -277,7 +277,8 @@ def main(
                   'battalion'],  #'brigade', 'regiment', 'division']
     real_backgrounds_ratio=0.0,
     real_backgrounds_dir="data/real_backgrounds",
-    real_symbols_ratio=0.0
+    real_symbols_ratio=0.0,
+    real_symbols_in_real_backgrounds=False
 ):  
     
     save_dim = (save_dim_h,save_dim_w)
@@ -338,7 +339,7 @@ def main(
                                                                                         boundingBoxesToRemove,real_symbols_ratio,sample_real,sample_real_Clean,
                                                                                         sample, 
                                                                                         canvas, 
-                                                                                        background_dim,dim)
+                                                                                        background_dim,dim,real_symbols_in_real_backgrounds)
                                         
                 else:
                     if random.uniform(0,1) < vertical_ratio:
@@ -409,6 +410,7 @@ def parse_opt():
     parser.add_argument('--real_backgrounds_ratio', type=float, default = 0.0, help='Ratio of data with real backgrounds')
     parser.add_argument('--real_backgrounds_dir', type=str, default = "data/real_backgrounds", help='Directory in which the real data backgrounds are')
     parser.add_argument('--real_symbols_ratio', type=float, default = 0.0, help="Ratio of real symbols cut from film")
+    parser.add_argument('--real_symbols_in_real_backgrounds', action='store_true', help="use real symbols in real backgrounds while generating real backgrounds data")
     opt = parser.parse_args()
     return opt
 
