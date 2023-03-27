@@ -112,9 +112,16 @@ def add_grid_number(canvas : np.ndarray,
 
     Args:
         canvas : The overall image which is generated. The numbers will be palced onto that.
-        point1 : 
-        offset0 :
-        offset1 :
+        point1 : The height on placment symbol where the number will be added
+        offset0 : The offset along the y-axis (height).
+        offset1 : The offset along the x-axis (width).
+        grid : The MGRS grid number
+        placement :  The placement symbol for which the numbers will be added.
+        sample_extras : The dictionary which will contain the numbers images.
+        scale : The scaling factor for the grid number.
+    
+    Return:
+        Canvas images with placed numbers.
     """
     first_number, second_number = get_grid_numbers(grid, scale, sample_extras)
     point1_1 = offset0+point1-int(first_number.shape[0]/2)
