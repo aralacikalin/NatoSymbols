@@ -69,10 +69,11 @@ def get_points(dim : Tuple[int,int],
 
         if not overlap:
             is_overlap = False
-        
+
         counter+=1
         if counter > 50:
             raise Exception("No place found")
+        
     
     return point1, point2
 
@@ -159,6 +160,7 @@ def draw_line(canvas, point1, point2, rotation, side, img):
         max_lengths[1,:] = max_lengths[1,:] + (prev_point-new_point)
         if (max_lengths[0,0] > 0 and max_lengths[0,1] > 0 and max_lengths[1,0] < 0 and max_lengths[1,1] < 0):
             break
+        canvas = canvas.astype(np.uint8).copy()
         cv2.line(canvas, (prev_point[1],prev_point[0]), (new_point[1],new_point[0]), 0, 9)
         prev_point = new_point
         rotation = rotation+randint(-20,20)
