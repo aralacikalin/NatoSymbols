@@ -830,7 +830,7 @@ def augment(img : np.ndarray,
             scale_to_binary : Optional[bool] = False,
             binary_threshold : Optional[int] = 110,
             invert : Optional[bool] = False,
-            normalize : Optional[bool] = False) -> np.ndarray:
+            normalize : Optional[bool] = False) -> Tuple[np.ndarray,int]:
     """
     Augments the given image
 
