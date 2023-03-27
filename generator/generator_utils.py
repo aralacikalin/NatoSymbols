@@ -8,16 +8,54 @@ from random import randint
 from scipy import ndimage
 from generate_unit_symbol import *
 import copy
+from typing import Tuple, List, Dict, Optional
 
-# Given top-left coorindate postion, places symbol on the canvas
-# Only places black pixels. Doesn't override already existing black pixels to white.
-def place_symbol(canvas, symbol, point1, point2):
+def place_symbol(canvas : np.ndarray,
+                 symbol : np.ndarray,
+                 point1 : int,
+                 point2 : int) -> np.ndarray:
+    """
+    Places the given symbol on canvas. Only places the black pixels.
+
+    Args:
+        canvas : The overall image which is generated
+        symbol : The image which will be placed on canvas
+        point1 : The upper point on canvas where the symbol will be placed.
+        point2 : The left point on canvas where the symbol will be places.
+
+    Returns:
+        canvas: A image with placed symbol.
+
+    Raises:
+        IndexError: If the symbol would go out of bounds for given point.
+
+    """
+
+    if not ((point1+symbol.shape[0] > canvas.shape[0]) or ((point2+symbol.shape[1] > canvas.shape[1]))):
+        raise IndexError("The symbol does not fit onto the canvas")
+
     canvas[point1:point1+symbol.shape[0],point2:point2+symbol.shape[1]][symbol < 140] = 0
     return canvas
 
-# Finds the empty place on canvas where to put the symbol.
-# Takes into account the allowed overlap
-def get_points(dim, symbol, locations, locations_units,location_placement):
+def get_points(dim : Tuple[int,int],
+               symbol : np.ndarray,
+               locations : List[Tuple[Tuple[int,int],Tuple[int,int]]],
+               locations_units : List[Tuple[Tuple[int,int],Tuple[int,int]]],
+               location_placement : List[Tuple[Tuple[int,int],Tuple[int,int]]]) -> Tuple[int,int]:
+    """
+    Finds the empty place randomly on canvas where to put the symbols.
+
+    Args:
+        dim : The dimensions of canvas.
+        symbol : The image for which the location will be looked for.
+        locations : The locations of another symbols.
+        locations_units : The locations of unit symbols.
+        locations_placment : The locations of placement symbols.
+
+    Returns:
+        Upper-left point where the symbol can be placed.
+
+    """
     is_overlap = True
     counter = 0
     while(is_overlap):
@@ -38,15 +76,45 @@ def get_points(dim, symbol, locations, locations_units,location_placement):
     
     return point1, point2
 
-def get_grid_numbers(grid, scale, sample_extras):
+def get_grid_numbers(grid : int,
+                     scale : float,
+                     sample_extras : Dict[str,np.ndarray]) -> Tuple[np.ndarray,np.ndarray]:
+    """
+    Samples the grid number images.
+
+    Args:
+        grid : The MGRS gridnumber
+        scale : The scale for the number images
+        sample_extras : The dictionary which will contain the numbers images.
+
+    Returns:
+        The images of numbers. If the number is 9, then 0 and 9 will be returned.
+
+    """
     first_number = get_random(str(grid//10), sample_extras)
     first_number = resize_by_scale(first_number, scale)
     second_number = get_random(str(grid%10), sample_extras)
     second_number = resize_by_scale(second_number, scale)
     return first_number, second_number
 
-# Adds the frid number for palcement symbol
-def add_grid_number(canvas,point1,point2,offset0,offset1,grid,placement,sample_extras,scale=0.5):
+
+def add_grid_number(canvas : np.ndarray,
+                    point1 : int,
+                    offset0 : int,
+                    offset1 : int,
+                    grid : int,
+                    placement : np.ndarray,
+                    sample_extras : Dict[str,np.ndarray],
+                    scale : Optional[float] = 0.5) -> np.ndarray:
+    """
+    Adds the grid numbers for placement symbol onto the canvas
+
+    Args:
+        canvas : The overall image which is generated. The numbers will be palced onto that.
+        point1 : 
+        offset0 :
+        offset1 :
+    """
     first_number, second_number = get_grid_numbers(grid, scale, sample_extras)
     point1_1 = offset0+point1-int(first_number.shape[0]/2)
     point2_1 = canvas.shape[1]-offset1-placement.shape[1]-10
@@ -54,7 +122,17 @@ def add_grid_number(canvas,point1,point2,offset0,offset1,grid,placement,sample_e
     canvas = place_symbol(canvas, second_number, point1_1, point2_1-second_number.shape[1]-5)
     return canvas
 
-def add_grid_number2(canvas,point1,point2,offset0,offset1,grid,placement,sample_extras,scale=0.5):
+def add_grid_number2(canvas : np.ndarray,
+                    point2 : int,
+                    offset0 : int,
+                    offset1 : int,
+                    grid : int,
+                    placement : np.ndarray,
+                    sample_extras : Dict[str,np.ndarray],
+                    scale : Optional[float] = 0.5) -> np.ndarray:
+    """
+    Adds the grid numbers for placement symbol onto the canvas
+    """
     first_number, second_number = get_grid_numbers(grid, scale, sample_extras)
     point1_1 = offset0+placement.shape[0]+10
     point2_1 = canvas.shape[1]-offset1-point2
@@ -138,7 +216,7 @@ def read_into_dic(directory, re_in, output_dir = None, excess_str = 100):
         excess_str (int, optional): The threshold value.
 
     Returns:
-        Dic: A dictionary containing of numpy arrays representing the images, and the keys are labels corresponding to iamges in the array.
+        Dic: A dictionary containing of numpy arrays representing the images, and the keys are labels corresponding to images in the array.
 
     Raises:
         FileNotFoundError: If the directory does not exist.

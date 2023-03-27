@@ -69,11 +69,11 @@ def generate_image(sample,
         #Add location numbers to placement symbols
         #Generate the grid number
         grid1 = randint(0,99)
-        canvas = add_grid_number(canvas,point_down,point_left,offset0,offset1,grid1,placement,sample_extras, scale = 0.75*scale)
-        canvas = add_grid_number(canvas,point_up,point_left,offset0,offset1,(grid1+1)%100,placement,sample_extras, scale = 0.75*scale)
+        canvas = add_grid_number(canvas,point_down,offset0,offset1,grid1,placement,sample_extras, scale = 0.75*scale)
+        canvas = add_grid_number(canvas,point_up,offset0,offset1,(grid1+1)%100,placement,sample_extras, scale = 0.75*scale)
         grid2 = randint(0,99)
-        canvas = add_grid_number2(canvas,point_down,point_left,offset0,offset1,grid2,placement,sample_extras, scale = 0.75*scale)
-        canvas = add_grid_number2(canvas,point_up,point_right,offset0,offset1,(grid2+1)%100,placement,sample_extras, scale = 0.75*scale)
+        canvas = add_grid_number2(canvas,point_left,offset0,offset1,grid2,placement,sample_extras, scale = 0.75*scale)
+        canvas = add_grid_number2(canvas,point_right,offset0,offset1,(grid2+1)%100,placement,sample_extras, scale = 0.75*scale)
         length = point_down-point_up
         point1 = offset0+point_down+((canvas.shape[0]-offset0-point_down)//length-1)*length
         point2 = (canvas.shape[1]-offset1-(placement.shape[1]-point_left))%length+length
@@ -86,9 +86,9 @@ def generate_image(sample,
         canvas = place_symbol(canvas, placement2, point1_1, point2_1)
         
         grid1 = (grid1 - ((canvas.shape[0]-offset0-point_down)//length-1))%100
-        canvas = add_grid_number(canvas,point1,point2+length,0,canvas.shape[1]-point2-int(placement2.shape[1]/2),grid1,placement2,sample_extras)
+        canvas = add_grid_number(canvas,point1,0,canvas.shape[1]-point2-int(placement2.shape[1]/2),grid1,placement2,sample_extras)
         grid2 = (grid2 - int((canvas.shape[1]-offset1-(placement.shape[1]-point_left+length)-point2)/length))%100
-        canvas = add_grid_number2(canvas,point1,-point2,point1-int(placement2.shape[0]/2),canvas.shape[1],grid2,placement2,sample_extras)
+        canvas = add_grid_number2(canvas,-point2,point1-int(placement2.shape[0]/2),canvas.shape[1],grid2,placement2,sample_extras)
         location_placement.append(((point1_1,point2_1),(point1_1+placement2.shape[0],point2_1+placement2.shape[1])))
         
     if randint(0,1) == 0:
