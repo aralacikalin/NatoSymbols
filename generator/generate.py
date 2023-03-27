@@ -143,7 +143,10 @@ def generate_image(sample,
 
         #Check if there is overlap with current symbols.
         #If there is overlap the generate new locations and check again.
-        point1, point2 = get_points(dim, img, locations, locations_units,location_placement)
+        try:
+            point1, point2 = get_points(dim, img, locations, locations_units,location_placement)
+        except:
+            continue
 
 
         labels.append(label)
@@ -217,7 +220,10 @@ def generate_image(sample,
     for i in range(randint(1,4)):
         mortar_img = get_mortar_area_img(i, scale, sample_extras)
         
-        point1, point2 = get_points(dim, mortar_img, locations, locations_units,location_placement)
+        try:
+            point1, point2 = get_points(dim, mortar_img, locations, locations_units,location_placement)
+        except:
+            continue
         
         canvas = place_symbol(canvas, mortar_img, point1, point2)
 
@@ -328,7 +334,7 @@ def main(
     for i in tqdm(range(examples_nr)):
         not_successful = True
         while not_successful:
-            # try:
+            try:
                 save_dim = (save_dim_h,save_dim_w)
                 dim = (dim_h,dim_w)
                 scale = random.uniform(0.5,1.2)
@@ -385,8 +391,8 @@ def main(
                         else:
                             f.write(f'{rot}')
                 not_successful = False
-            # except:
-            #     continue
+            except:
+                continue
     
 
 def parse_opt():
