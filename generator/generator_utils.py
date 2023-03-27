@@ -129,47 +129,113 @@ def check_overlap(point1,point2,locations, symbol_shape = (1,1),max_overlap=50):
             break
     return is_overlap
 
-# Read the symbol images into dictionary
-def read_into_dic(directory, re_in, output_dir = None):
+def read_into_dic(directory, re_in, output_dir = None, excess_str = 100):
+    """
+    Reads all images in a directory and returns them as a dictionary of numpy arrays where keys are the labels.
+
+    Args:
+        directory (str): The path to the directory containing the images to read.
+        re_in (str): The regular expression pattern to match the label in the filename of each image.
+        output_dir (dic, optional): The output dictionary where the images will be stored. If none is given, then the new dictioanry will be greated.
+        excess_str (int, optional): The threshold value.
+
+    Returns:
+        Dic: A dictionary containing of numpy arrays representing the images, and the keys are labels corresponding to iamges in the array.
+
+    Raises:
+        FileNotFoundError: If the directory does not exist.
+    """
+
+    if not os.path.isdir(directory):
+        raise FileNotFoundError(f"Directory '{directory}' does not exist.")
+
+    # Check if the directory is given. If given then add to the existing directory,
     if output_dir == None:
         output_dir = {}
     for filename in os.listdir(directory+"/"):
-        img = cv2.imread(directory+"/" + filename,0)
-        img[img <= 100] = 0
-        img[img > 100] = 255
+        # Check if file is an image
+        if not filename.endswith(('.jpg', '.jpeg', '.png')):
+            continue
+        
+        img = cv2.imread(os.path.join(directory, filename), cv2.IMREAD_GRAYSCALE)
+
+        if img is None:
+            continue
+
+        img = cv2.threshold(img, excess_str, 255, cv2.THRESH_BINARY)[1]
         img = cut_excess_white(img)
         key = re.findall(re_in, filename)[0]
+
         if key in output_dir:
             output_dir[key].append(img)
         else:
             output_dir[key] = [img]
     return output_dir
 
-# Read the symbol images into list
-def read_into_list(directory, re_in):
+def read_into_list(directory, re_in, excess_str = 100):
+    """
+    Reads all images in a directory and returns them as a list of numpy arrays, along with their corresponding labels.
+
+    Args:
+        directory (str): The path to the directory containing the images to read.
+        re_in (str): The regular expression pattern to match the label in the filename of each image.
+        excess_str (int, optional): The threshold value.
+
+    Returns:
+        Tuple: A tuple containing a list of numpy arrays representing the images, and a list of labels corresponding to each image.
+
+    Raises:
+        FileNotFoundError: If the directory does not exist.
+    """
+
+    if not os.path.isdir(directory):
+        raise FileNotFoundError(f"Directory '{directory}' does not exist.")
+
     output_list = []
     output_labels = []
     for filename in os.listdir(directory+'/'):
-        img = cv2.imread(directory+'/' + filename,0)
-        img[img <= 100] = 0
-        img[img > 100] = 255
-        #Remove excess rows and columns that appeared after rotation and padding
+        # Check if file is an image
+        if not filename.endswith(('.jpg', '.jpeg', '.png')):
+            continue
+        
+        img = cv2.imread(os.path.join(directory, filename), cv2.IMREAD_GRAYSCALE)
+
+        if img is None:
+            continue
+
+        img = cv2.threshold(img, excess_str, 255, cv2.THRESH_BINARY)[1]
         img = cut_excess_white(img)
         output_list.append(img)
         output_labels.append(re.findall(re_in, filename)[0])
 
     return output_list, output_labels
 
-# Resize the image by scale
-def resize_by_scale(symbol, scale):
-    symbol = cv2.resize(symbol, (int(symbol.shape[1]*scale),int(symbol.shape[0]*scale)))
-    return symbol
+def resize_by_scale(img, scale):
+    """
+    Resize the image by scale
+    """
 
-# Remove excess rows and columns from symbol image
-def cut_excess_white(symbol, excess_str = 120):
-    symbol = symbol[np.argwhere(np.amin(symbol,axis=1) < excess_str)[0][0]:np.argwhere(np.amin(symbol,axis=1) < excess_str)[-1][0],:]
-    symbol = symbol[:,np.argwhere(np.amin(symbol,axis=0) < excess_str)[0][0]:np.argwhere(np.amin(symbol,axis=0) < excess_str)[-1][0]]
-    return symbol
+    if not isinstance(img, np.ndarray):
+        raise TypeError("img must be a numpy array")
+    if not isinstance(scale, (int, float)):
+        raise TypeError("scale must be int or float")
+
+    img = cv2.resize(img, (int(img.shape[1]*scale),int(img.shape[0]*scale)))
+    return img
+
+def cut_excess_white(img, excess_str = 120):
+    """
+    Remove excess rows and columns from img
+    """
+
+    if not isinstance(img, np.ndarray):
+        raise TypeError("img must be a numpy array")
+    if not 0 <= excess_str <= 255:
+        raise ValueError("excess_str must be between 0 and 255")
+    
+    img = img[np.argwhere(np.amin(img,axis=1) < excess_str)[0][0]:np.argwhere(np.amin(img,axis=1) < excess_str)[-1][0],:]
+    img = img[:,np.argwhere(np.amin(img,axis=0) < excess_str)[0][0]:np.argwhere(np.amin(img,axis=0) < excess_str)[-1][0]]
+    return img
 
 def read_in_labels(file):
     labels_to_nr = {}
@@ -180,62 +246,145 @@ def read_in_labels(file):
             i += 1
     return labels_to_nr
 
-# Get integer value of label
 def get_labels(label, labels_to_nr):
+    """
+    Return numerical value of the label
+    """
+
+    if not isinstance(label, str):
+        raise TypeError("label must be str")
+
     return labels_to_nr[label]
 
-# Return normalized value of cetner of box and dimensions of it.
-def get_locations(data_locations, dim0, dim1, offset = 0):
+def get_locations(data_locations, image_height, image_width, offset = 0):
+    """
+    Computes normalized locations and dimensions of objects in an image.
+
+    Args:
+        data_locations (list): A list of tuples where each tuple contains two points (top left and bottom right) that define
+                              the location of an object in the image.
+        image_height (int): The height of the image.
+        image_width (int): The width of the image.
+        offset (int, optional): The offset to add to the x coordinate of the bounding box. Defaults to 0.
+
+    Returns:
+        numpy.ndarray: An array where each row corresponds to an object and contains 4 elements:
+                       - The y-coordinate of the center of the object (normalized to [0,1]).
+                       - The x-coordinate of the center of the object (normalized to [0,1]).
+                       - The height of the object (normalized to [0,1]).
+                       - The width of the object (normalized to [0,1]).
+    """
+
     data_locations = np.array(data_locations)
     data_locations2 = np.zeros((data_locations.shape[0],4))
-    data_locations2[:,2] = (data_locations[:,1,1] - data_locations[:,0,1])/dim0
-    data_locations2[:,3] = (data_locations[:,1,0] - data_locations[:,0,0])/dim1
-    data_locations2[:,0] = (data_locations[:,1,1] + data_locations[:,0,1])/(2*dim0)
-    data_locations2[:,1] = ((data_locations[:,1,0] + data_locations[:,0,0])/2 + offset) / dim1
+    data_locations2[:,2] = (data_locations[:,1,1] - data_locations[:,0,1])/image_height
+    data_locations2[:,3] = (data_locations[:,1,0] - data_locations[:,0,0])/image_width
+    data_locations2[:,0] = (data_locations[:,1,1] + data_locations[:,0,1])/(2*image_height)
+    data_locations2[:,1] = ((data_locations[:,1,0] + data_locations[:,0,0])/2 + offset) / image_width
     return data_locations2
 
-# Checks if screen, cover or guard there is cap between arrow and letter or not. If there is cap between them,
-# then we can't take the first column where there are no black pixels.
-def check_if_cap(img, check_left = True, excess_str = 120):
-    values = np.argwhere(np.amin(img,axis=0) > excess_str)
-    if check_left:
-        val = values[0][0]
-        start = 1
-        end = len(values)
-        const = 1
-        const2 = 0
-    else:
-        val = values[-1][0]
-        start = len(values)-2
-        end = 0
-        const = -1
-        const2 = -1
-    if len(values < 25):
-        return val
-    
-    if val + const*25 != values[const*25+const2][0]: #Value 20 is taken with respect to current dataset. If the cap between two sides is smaller than 10, then it produces error.
-        for i in range(start,end):
-            if values[i] - const > values[i-const]:
-                val = values[i][0]
-                break
-    return val
+def find_cap(img, excess_str = 120):
+    """
+    Find the location of the cap between letters C/G/S in symbol
 
-def rotate_img(img, rotation,padding_val=255):
-    img_rotated = ndimage.rotate(img, rotation, mode='constant',cval=padding_val)
+    Args:
+        img (numpy.ndarray): A grayscale image represented as a 2D numpy array.
+        excess_str (int): The threshold value for what is considered a "white" pixel.
+
+    Returns:
+        Tuple of left and right bounds of the capital letter in the image.
+    """
+
+    if not isinstance(img, np.ndarray):
+        raise TypeError("img must be a numpy array")
+    if not 0 <= excess_str <= 255:
+        raise ValueError("excess_str must be between 0 and 255")
+    values = np.argwhere(np.amin(img,axis=0) > excess_str)
+
+    val_prev = values[0][0]
+    sizes = []
+    cuts = []
+    cuts.append(0)
+    size = 1
+    for i in range(1,len(values)):
+        val = values[i][0]
+        if val-val_prev == 1:
+            val_prev = val
+            size += 1
+        else:
+            val_prev = val
+            sizes.append(size)
+            cuts.append(i)
+            size = 1
+    sizes.append(size)
+    cuts.append(i)
+
+    loc = np.argmax(sizes) + 1
+    left = values[cuts[loc-1]][0]
+    right = values[cuts[loc]-1][0]
+    return left, right
+
+def rotate_img(img, rotation,padding_value=255):
+    """
+    Rotate an image by a given angle.
+
+    Parameters
+    ----------
+    img : numpy.ndarray
+        The image to be rotated.
+    rotation : float
+        The rotation angle in degrees.
+    padding_val : int, optional
+        The value to use for padding. Default is 255.
+
+    Returns
+    -------
+    numpy.ndarray
+        The rotated image.
+    """
+
+    if not isinstance(img, np.ndarray):
+        raise TypeError("img must be a NumPy array")
+
+    if not isinstance(rotation, (int, float)):
+        raise TypeError("rotation must be a number")
+    
+    img_rotated = ndimage.rotate(img, rotation, mode='constant',cval=padding_value)
     return img_rotated
 
-# Adds unit symbol in the middle of screen, cover and guard.
 def add_unit_symbol_in_middle(img, scale, sample_units, manuever_units,
                                             support_units, resizable, resizable_horizontal,
                                             resizable_vertical, unit_sizes):
+    """
+    Add a unit symbol in the middle of the image.
+
+    Parameters:
+    image (np.ndarray): The input image.
+    scale (float): The scale of the unit symbol.
+    sample_units (dir): The dictionary containing unit symbol samples.
+    maneuver_units (list): A list of maneuver units.
+    support_units (list): A list of support units.
+    resizable (list): A lsit of resizable symbols.
+    resizable_horizontal (list): A lsit of resizable horizontal symbols.
+    resizable_vertical (list): A list of resizable vertical symbols.
+    unit_sizes (list): A list of unit sizes.
+
+    Returns:
+    tuple: A tuple containing the following elements:
+        - The output image with the unit symbol in the middle.
+        - The label of the unit.
+        - The rotation angle in degrees.
+        - The top-left point of the image without symbol.
+        - The bottom-right point of the image without symbol.
+    """
+    
     #Cut excess white from edges
     img = cut_excess_white(img)
 
     img, rotation = augment(img, apply_rotation=False, apply_transformation=True, apply_boldness=True, scale_to_binary=True)
 
-    # Find if there is cap between arrow and letter S/C/G or not
-    left = check_if_cap(img)
-    right = check_if_cap(img, check_left = False)
+    # Find the cap in cover/guard/screen symbol
+    left, right = find_cap(img)
 
     #Get unit_symbol  
     unit_symbol, unit_lab = generate_unit(sample_units,"maneuver",
@@ -318,26 +467,26 @@ def get_noise_img(sample_extras):
     noise_img = get_random('noise', sample_extras)
     noise_img = resize_by_scale(noise_img, 0.17)
     return noise_img
-"""
-def get_overlapping_support_by_fire(scale, sample):
-    img1 = np.copy(np.copy(sample[200]))
 
-    return 
-"""
+def get_exercise_text(scale, sample, language):
+    """
+    Generates an image of the word 'exercise' in English or Estonian.
 
-def get_exercise_text(scale, sample, language):   
+    Args:
+        scale (float): The scale factor to resize the images.
+        sample (dict): A dictionary of images.
+        language (str): The language of the text. Either 'en' for English or 'et' for Estonian.
+
+    Returns:
+        np.ndarray: The image of the text.
+    """
+
     letters_dic = {}
     max_height = 0
     length = 0
     if language == 'en':
         letters = ['e','x','e','r','c','i','s','e']
-        """
-        if randint(0,1) == 1:
-            letters = ['e','x','e','r','c','i','s','e']
-        else:
-            letters = ['e','x']
-        """
-    else: #language == 'et'
+    else:
         letters = ['oline','p','p','u','s']
     for letter in set(letters):
         letter_img = get_random(letter, sample)
@@ -346,15 +495,19 @@ def get_exercise_text(scale, sample, language):
             max_height = letter_img.shape[0]
         length += letter_img.shape[1]
         letters_dic[letter] = letter_img
+    
     max_height += 3
+
     if language == 'en':
         length += int(7*6) #Add 4pixels between symbols
         length += int(letters_dic['e'].shape[1]*2)
     else:
         length += int(4*6)
         length += letters_dic['p'].shape[1]
+    
     text_img = np.full((max_height,length),255)
     pointer = 0
+
     for letter in letters:
         text_img = place_symbol(text_img, letters_dic[letter],randint(0,3),pointer)
         pointer+=letters_dic[letter].shape[1]+6
@@ -362,36 +515,72 @@ def get_exercise_text(scale, sample, language):
     return text_img
 
 def place_exercise_text(canvas, scale, sample, language = None):
-    scale = scale*0.7
-    if language == None:
+    """
+    Places the text 'exercise' in English or Estonian on an image.
+
+    Args:
+        canvas (np.ndarray): The input image to place the text on.
+        scale (float): The scale factor to resize the images.
+        sample (dict): A dictionary of images.
+        language (str, optional): The language of the text. Either 'en' for English or 'et' for Estonian. Defaults to a random language.
+
+    Returns:
+        np.ndarray: The image with the placed text.
+    """
+
+    if not isinstance(canvas, np.ndarray):
+        raise TypeError("img must be a NumPy array")
+
+    if language is None:
         language = ['en', 'et'][randint(0,1)]
+    elif not isinstance(language, str):
+        raise TypeError("language must be a str")
+    
+    scale = scale*0.7
     vertical_loc = randint(16,28)
     mid = int(canvas.shape[1]/2)
+
     for i in range(2):
-        ex_text1 = get_exercise_text(scale, sample, language)
-        ex_text2 = get_exercise_text(scale, sample, language)
-        ex_text3 = get_exercise_text(scale, sample, language)
-        line1 = get_random('line', sample)
-        line2 = get_random('line', sample)
-        line1 = resize_by_scale(line1, scale)
-        line2 = resize_by_scale(line2, scale)
-        line1 = cv2.resize(line1, (int(line1.shape[1]*0.5),line1.shape[0]))
-        line2 = cv2.resize(line2, (int(line2.shape[1]*0.5),line2.shape[0]))
+        ex_texts = [get_exercise_text(scale, sample, language) for _ in range(3)]
+        lines = [resize_by_scale(get_random('line', sample), scale) for _ in range(2)]
+        lines = [cv2.resize(line, (int(line.shape[1]*0.5), line.shape[0])) for line in lines]
 
-        canvas = place_symbol(canvas, ex_text1, vertical_loc, mid-int(ex_text2.shape[1]/2)-line1.shape[1]-ex_text1.shape[1]-8)
-        canvas = place_symbol(canvas, line1, vertical_loc+int(ex_text1.shape[0]/2)-int(line1.shape[0]/2), mid-int(ex_text2.shape[1]/2)-line1.shape[1]-4)
-        canvas = place_symbol(canvas, ex_text2, vertical_loc, mid-int(ex_text2.shape[1]/2))
-        canvas = place_symbol(canvas, line2, vertical_loc+int(ex_text2.shape[0]/2)-int(line2.shape[0]/2), mid+int(ex_text2.shape[1]/2)+4)
-        canvas = place_symbol(canvas, ex_text3, vertical_loc, mid+int(ex_text2.shape[1]/2)+line2.shape[1]+8)
+        canvas = place_symbol(canvas, ex_texts[0], vertical_loc, mid-int(ex_texts[1].shape[1]/2)-lines[0].shape[1]-ex_texts[0].shape[1]-8)
+        canvas = place_symbol(canvas, lines[0], vertical_loc+int(ex_texts[0].shape[0]/2)-int(lines[0].shape[0]/2), mid-int(ex_texts[1].shape[1]/2)-lines[0].shape[1]-4)
+        canvas = place_symbol(canvas, ex_texts[1], vertical_loc, mid-int(ex_texts[1].shape[1]/2))
+        canvas = place_symbol(canvas, lines[1], vertical_loc+int(ex_texts[1].shape[0]/2)-int(lines[1].shape[0]/2), mid+int(ex_texts[1].shape[1]/2)+4)
+        canvas = place_symbol(canvas, ex_texts[2], vertical_loc, mid+int(ex_texts[1].shape[1]/2)+lines[1].shape[1]+8)
 
-        vertical_loc = canvas.shape[0]-int(1.1*np.maximum(np.maximum(ex_text1.shape[0],ex_text2.shape[0]),ex_text3.shape[0]))
+        vertical_loc = canvas.shape[0]-int(1.1*np.maximum(np.maximum(ex_texts[0].shape[0],ex_texts[1].shape[0]),ex_texts[2].shape[0]))
 
     return canvas
 
 def inverse(img, binary_threshold=110):
-    loc = img <= binary_threshold
-    img[img > binary_threshold] = 0
-    img[loc] = 255
+    """
+    Inverse the black and white pixels of an image.
+
+    Parameters
+    ----------
+    img : numpy.ndarray
+        The image to be rotated.
+    rotation : float
+        The rotation angle in degrees.
+    binary_threshold : int, optional
+        The value to from which the threshold is applied Default is 255.
+
+    Returns
+    -------
+    numpy.ndarray
+        The inverse image.
+    """
+
+    if not isinstance(img, np.ndarray):
+        raise TypeError("img must be a NumPy array")
+    # Check if the given threshold is in limits
+    if not 0 <= binary_threshold <= 255:
+        raise ValueError("binary_threshold must be between 0 and 255")
+    # Set the background pixels to 0 and symbols pixels to 255
+    img = np.where(img <= binary_threshold, 255, 0)
     return img
 
 # Agument the image

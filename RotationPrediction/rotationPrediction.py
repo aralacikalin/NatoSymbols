@@ -31,22 +31,36 @@ def main():
         with open(labels+str(name).split(".")[0]+".txt", "r") as f:
             lines = [line.rstrip('\n') for line in f]
             for line in lines:
-                x = int((float(line.split(" ")[1])-(float(line.split(" ")[3])/2)) * imageW)
-                y = int((float(line.split(" ")[2])-(float(line.split(" ")[4])/2)) * imageH)
-                w = int(float(line.split(" ")[3]) * imageW + 5)
-                h = int(float(line.split(" ")[4]) * imageH + 5)
+                x = int((float(line.split(" ")[1])-(float(line.split(" ")[3])/2)) * imageW) - 25
+                y = int((float(line.split(" ")[2])-(float(line.split(" ")[4])/2)) * imageH) - 25
+                w = int(float(line.split(" ")[3]) * imageW + 25)
+                h = int(float(line.split(" ")[4]) * imageH + 25)
 
                 crop_image = image[y:y+h, x:x+w]
                 tmp_list_class.append(int(line.split(" ")[0]))
-                dim = (75, 75)
+                dim = (80, 80)
                 resized_img = cv2.resize(crop_image, dim, interpolation = cv2.INTER_AREA)
 
                 # Predict
-                reshaped_img = resized_img.reshape(1, 75, 75)
-                model.load_weights('./rotation_models/'+Dict[int(line.split(" ")[0])]+'_rotation_model_31.h5')
+                reshaped_img = resized_img.reshape(1, 80, 80)
+                model.load_weights('./rotation_models/'+Dict[int(line.split(" ")[0])]+'_rotation_model_31_1203.h5')
                 predicted_rotation = model.predict(reshaped_img, verbose=0)
-                line += f" {np.argmax(predicted_rotation)}\n"
+                degreePrediction = np.argmax(predicted_rotation)
+                line += f" {degreePrediction}\n"
                 new_lines += line
+
+                # if line.split(" ")[0] in ["0", "2", "9", "18"]:
+                #     # To see the prediction
+                #     font = cv2.FONT_HERSHEY_SIMPLEX
+                #     font_scale = 0.5
+                #     font_color = (200, 0, 0)
+                #     thickness = 2
+                #     text_size, _ = cv2.getTextSize(str(degreePrediction), font, font_scale, thickness)
+                #     x_ = int((resized_img.shape[1] - text_size[0]) / 2)
+                #     y_ = int((resized_img.shape[0] + text_size[1]) / 2)
+                #     cv2.putText(resized_img, str(degreePrediction), (x_, y_), font, font_scale, font_color, thickness)
+                #     cv2.imshow("Test", resized_img)
+                #     cv2.waitKey()
 
         with open(viz_labels + str(name).split(".")[0] + ".txt", "w") as f_w:
             f_w.write(new_lines)
