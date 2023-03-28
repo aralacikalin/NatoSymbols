@@ -801,8 +801,7 @@ def inverse(img : np.ndarray,
 
     Parameters:
         img : The image to be rotated.
-        rotation : The rotation angle in degrees.
-        binary_threshold : The value to from which the threshold is applied Default is 255.
+        binary_threshold : The value to from which the threshold is applied.
 
     Returns:
         The inverse image.
@@ -895,7 +894,7 @@ def augment(img : np.ndarray,
         img  = cv2.warpAffine(img ,M,(img.shape[1],img.shape[0]),borderValue = 255)
     #Remove excess rows and columns that appeared after rotation and padding
     if remove_excess:
-        img = cut_excess_white(img)
+        img = cut_excess_white(img, excess_str)
     
     #Currently with random we do not dialte(that means we do not erode, some symbols disapper with that)
     #dilation and erosion
