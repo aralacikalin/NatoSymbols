@@ -410,7 +410,7 @@ def run(
     if len(stats) and stats[0].any():
         isConfidenceReturned=True
         try:
-            tp, fp, p, r, f1, ap, ap_class,f1MaxConfThreshold = ap_per_class(*stats, plot=plots, save_dir=save_dir, names=names)
+            tp, fp, p, r, f1, ap, ap_class,f1MaxConfThreshold = ap_per_class_with_confidence(*stats, plot=plots, save_dir=save_dir, names=names)
         except:
             tp, fp, p, r, f1, ap, ap_class = ap_per_class(*stats, plot=plots, save_dir=save_dir, names=names)
             fpC=fp.sum()
