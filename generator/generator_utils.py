@@ -20,8 +20,8 @@ def place_symbol(canvas : np.ndarray,
     Args:
         canvas : The overall image which is generated
         symbol : The image which will be placed on canvas
-        point1 : The upper point on canvas where the symbol will be placed.
-        point2 : The left point on canvas where the symbol will be places.
+        point1 : The upper edge on canvas where the symbol will be placed.
+        point2 : The left edge on canvas where the symbol will be placed.
 
     Returns:
         canvas: A image with placed symbol.
@@ -682,7 +682,7 @@ def get_random(label : str,
         sample : The dictionary containing the images.
 
     Return:
-        Sampled image which correspons to label.
+        Sampled image which corresponds to label.
     """
 
     imgs = sample[label]
