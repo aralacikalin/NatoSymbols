@@ -8,7 +8,7 @@ This produces one example and stores the image in images/train folder. To create
 ```
 python generate.py --examples_nr 10
 ```
-More info about the possible arguments can be found in the following table.
+More info about the possible arguments can be found in the following table. To see the default values of the arguments check out the generate.py where the default arguments can be seen in the parse_opt() function.
 
 | Argument  | Describtion |
 | ------------- | ------------- |
