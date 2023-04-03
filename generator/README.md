@@ -8,7 +8,7 @@ This produces one example and stores the image in images/train folder. To create
 ```
 python generate.py --examples_nr 10
 ```
-More info about the possible arguments can be found in generate.py.
+More info about the possible arguments can be found in the following table.
 
 | Argument  | Describtion |
 | ------------- | ------------- |
