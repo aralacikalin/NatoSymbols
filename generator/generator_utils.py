@@ -213,7 +213,7 @@ def point_location(rotation : int,
     Args:
         rotation : The symbols (tactical task) rotation
         symbol_shape : The dimensions of symbol image
-        cetner : The center of the symbol
+        center : The center of the symbol
         unit_symbol_shape : The shape of the unit symbol
     
     Return:
@@ -284,7 +284,7 @@ def read_into_dic(directory : str,
         directory : The path to the directory containing the images to read.
         re_in : The regular expression pattern to match the label in the filename of each image.
         output_dir : The output dictionary where the images will be stored. If none is given, then the new dictioanry will be greated.
-        excess_str : The threshold value.
+        excess_str : The threshold value to cut excess edges on the images.
 
     Returns:
         A dictionary containing of numpy arrays representing the images, and the keys are labels corresponding to images in the array.

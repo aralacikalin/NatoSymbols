@@ -401,7 +401,7 @@ def parse_opt():
     parser.add_argument('--dim_w', type=int, default = 4624, help='The dimension which is being used during generating, should be same in which the symbols samples are taken')
     parser.add_argument('--save_dim_h', type=int, default = 578, help='Dimesion in which the generated images are saved')
     parser.add_argument('--save_dim_w', type=int, default = 770, help='Dimesion in which the generated images are saved')
-    parser.add_argument('--save_as_square', type=bool, default = False, help='If the saved iamge hieght and width are equal. Uses save_dim[1] as dimension for both')
+    parser.add_argument('--save_as_square', type=bool, default = False, help='If the saved image hieght and width are equal. Uses save_dim[1] as dimension for both')
     parser.add_argument('--save_as_inverse', type=bool, default = False, help='Switches black and white pixels when saving')
     parser.add_argument('--vertical_ratio', type=float, default = 0.0, help='Probabilty that generated image is vertical / will switch dim_h and dim_w')
     parser.add_argument('--examples_nr', type=int, default = 1, help='Number of images to generate')
