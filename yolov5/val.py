@@ -73,7 +73,7 @@ from utils.dataloaders import create_dataloader
 from utils.general import (LOGGER, TQDM_BAR_FORMAT, Profile, check_dataset, check_img_size, check_requirements,
                            check_yaml, coco80_to_coco91_class, colorstr, increment_path, non_max_suppression,
                            print_args, scale_boxes, xywh2xyxy, xyxy2xywh)
-from utils.metrics import ConfusionMatrix, ap_per_class, box_iou, ap_per_class_with_confidence
+from utils.metrics import ConfusionMatrix, ap_per_class, box_iou,ap_all,ap_per_class_with_confidence
 from utils.plots import output_to_target, plot_images, plot_val_study
 from utils.torch_utils import select_device, smart_inference_mode
 
@@ -416,33 +416,36 @@ def run(
             fpC=fp.sum()
             isConfidenceReturned=False
 
+        tpMicro, fpMicro, pMicro, rMicro, f1Micro, apMicro, _,f1MaxConfThresholdMicro = ap_all(*stats, plot=plots, save_dir=save_dir, names=names)
 
         ap50, ap = ap[:, 0], ap.mean(1)  # AP@0.5, AP@0.5:0.95
+        map50Micro, mapMicro = apMicro[:, 0], apMicro.mean(1)  # AP@0.5, AP@0.5:0.95
         mp, mr, map50, map = p.mean(), r.mean(), ap50.mean(), ap.mean()
     nt = np.bincount(stats[3].astype(int), minlength=nc)
     tpC=tp.sum()
+    tpMicroC=tpMicro.sum()
     if(isConfidenceReturned):
         fpC=0  # number of targets per class
         predictionCorrectness,conf,predClass,_=stats
-        indexesConfidenceBigger=np.argwhere(conf>=f1MaxConfThreshold)
+        indexesConfidenceBigger=np.argwhere(conf>=f1MaxConfThresholdMicro)
         predictionCorrectness=predictionCorrectness[indexesConfidenceBigger]
-        fpC=len(predictionCorrectness)-tpC
+        fpC=len(predictionCorrectness)-tpMicroC
         LOGGER.info(f'Results at max f1_score, confidence threshold: {f1MaxConfThreshold}')
     else:
         LOGGER.info(f'Results at max f1_score')
 
 
-    LOGGER.info(('%22s' + '%11s' * 6) % ('Class', 'Images', 'Instances', 'P', 'R', 'mAP50', 'mAP50-95'))
+    LOGGER.info(('%22s' + '%11s' * 6) % ('Class', 'Images', 'Instances', 'P', 'R', 'mAP50', 'mAP50-95',))
 
     resultsToSave = ('%22s' + '%11s' * 6) % ('Class', 'Images', 'Instances', 'P', 'R', 'mAP50', 'mAP50-95') +"\n"
     # Print results
     pf = '%22s' + '%11i' * 2 + '%11.3g' * 4  # print format
     LOGGER.info(pf % ('macro average', seen, nt.sum(), mp, mr, map50, map))
-    resultsToSave+=pf % ('macro average', seen, nt.sum(), mp, mr, map50, map) +"\n"
-    resultsToSave+=pf % ('micro average', seen, nt.sum(), (tpC/(tpC+fpC)), (tpC/(nt.sum()+1e-16)), 0, 0) +"\n"
+    resultsToSave+=pf % (f'macro average', seen, nt.sum(), mp, mr, map50, map) +  f" @{f1MaxConfThreshold}" +"\n"
+    resultsToSave+=pf % (f'micro average', seen, nt.sum(), (tpMicroC/(tpMicroC+fpC)), (tpMicroC/(nt.sum()+1e-16)), map50Micro, mapMicro )+  f" @{f1MaxConfThresholdMicro}" +"\n"
     if nt.sum() == 0:
         LOGGER.warning(f'WARNING ⚠️ no labels found in {task} set, can not compute metrics without labels')
-    LOGGER.info(pf % ('micro average', seen, nt.sum(), (tpC/(tpC+fpC)), (tpC/(nt.sum()+1e-16)), 0, 0))
+    LOGGER.info(pf % (f'micro average', seen, nt.sum(), (tpMicroC/(tpMicroC+fpC)), (tpMicroC/(nt.sum()+1e-16)), map50Micro, mapMicro))
     # Print results per class
     if (verbose or (nc < 50 and not training)) and nc > 1 and len(stats):
         for i, c in enumerate(ap_class):

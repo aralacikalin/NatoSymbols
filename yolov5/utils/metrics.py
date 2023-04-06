@@ -161,6 +161,64 @@ def ap_per_class_with_confidence(tp, conf, pred_cls, target_cls, plot=False, sav
     fp = (tp / (p + eps) - tp).round()  # false positives
     return tp, fp, p, r, f1, ap, unique_classes.astype(int),conf_thresh
 
+def ap_all(tp, conf, pred_cls, target_cls, plot=False, save_dir='.', names=(), eps=1e-16, prefix=''):
+    """ Compute the average precision, given the recall and precision curves.
+    Source: https://github.com/rafaelpadilla/Object-Detection-Metrics.
+    # Arguments
+        tp:  True positives (nparray, nx1 or nx10).
+        conf:  Objectness value from 0-1 (nparray).
+        pred_cls:  Predicted object classes (nparray).
+        target_cls:  True object classes (nparray).
+        plot:  Plot precision-recall curve at mAP@0.5
+        save_dir:  Plot save directory
+    # Returns
+        The average precision as computed in py-faster-rcnn.
+    """
+
+    # Sort by objectness
+    i = np.argsort(-conf)
+    tp, conf, pred_cls = tp[i], conf[i], pred_cls[i]
+
+    # Find unique classes
+    unique_classes, nt = np.unique(target_cls, return_counts=True)
+    nc = 1  # number of classes, number of detections
+
+    # Create Precision-Recall curve and compute AP for each class
+    px, py = np.linspace(0, 1, 1000), []  # for plotting
+    ap, p, r = np.zeros((nc, tp.shape[1])), np.zeros((nc, 1000)), np.zeros((nc, 1000))
+
+    n_l=nt.sum()
+    fpc = (1 - tp).cumsum(0)
+    tpc = tp.cumsum(0)
+    # print(fpc,tpc)
+    recall = tpc / (n_l + eps)  # recall curve
+    precision = tpc / (tpc + fpc)  # precision curve
+    r[0] = np.interp(-px, -conf, recall[:, 0], left=0)  # negative x, xp because xp decreases
+    p[0] = np.interp(-px, -conf, precision[:, 0], left=1)  # p at pr_score
+
+    for j in range(tp.shape[1]):
+            ap[0, j], mpre, mrec = compute_ap(recall[:, j], precision[:, j])
+            if plot and j == 0:
+                py.append(np.interp(px, mrec, mpre))  # precision at mAP@0.5
+
+
+    # Compute F1 (harmonic mean of precision and recall)
+    f1 = 2 * p * r / (p + r + eps)
+    names = [v for k, v in names.items() if k in unique_classes]  # list: only classes that have data
+    names = dict(enumerate(names))  # to dict
+    if plot:
+        plot_pr_curve(px, py, ap, Path(save_dir) / f'{prefix}Micro-PR_curve.png', names)
+        plot_mc_curve(px, f1, Path(save_dir) / f'{prefix}Micro-F1_curve.png', names, ylabel='F1')
+        plot_mc_curve(px, p, Path(save_dir) / f'{prefix}Micro-P_curve.png', names, ylabel='Precision')
+        plot_mc_curve(px, r, Path(save_dir) / f'{prefix}Micro-R_curve.png', names, ylabel='Recall')
+
+    i = smooth(f1.mean(0), 0.1).argmax()  # max F1 index
+    conf_thresh=px[i]
+    p, r, f1 = p[:, i], r[:, i], f1[:, i]
+    tp = (r * nt).round()  # true positives
+    fp = (tp / (p + eps) - tp).round()  # false positives
+    return tp, fp, p, r, f1, ap, unique_classes.astype(int),conf_thresh
+
 def compute_ap(recall, precision):
     """ Compute the average precision, given the recall and precision curves
     # Arguments
