@@ -160,7 +160,7 @@ def add_unit_size(sample : Dict[str,List[np.ndarray]],
 
 def generate_unit(sample : Dict[str,List[np.ndarray]],
                   lab : str,
-                  manuever_units : Optional[List[str]] = ['infrantry', #Currently used as global variables
+                  manuever_units : Optional[List[str]] = ['infantry', #Currently used as global variables
                      'anti_tank',
                      'armour',],
                   support_units : Optional[List[str]] = ['recce',
@@ -186,7 +186,7 @@ def generate_unit(sample : Dict[str,List[np.ndarray]],
     
     template = get_random('template', sample)
     
-    #Get the random label for iamge if one is not provided
+    #Get the random label for image if one is not provided
     if lab == "maneuver":
         unit_lab = manuever_units[randint(0,len(manuever_units)-1)]
         unit_img = get_random(unit_lab, sample)
