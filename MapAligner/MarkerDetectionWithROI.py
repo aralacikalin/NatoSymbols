@@ -952,23 +952,156 @@ def ReturnPoints(pointsOnBigImage):
     return leftTopPoint,rightTopPoint,leftBottomPoint,rightBottomPoint
 
 
-def getMGRSPoints(templateIndex):
+def getMGRSPoints(templateIndex,image,markerbbox,leftTop=0,rightTop=0,leftBot=0,RightBot=0):
+    startX,startY,endX,endY =markerbbox
+
+    edgeCase=False
+    pixelPecentageZoomOut=0.1
+    startX=int(startX-(endX-startX)*pixelPecentageZoomOut)
+    startY=int(startY-(endY-startY)*pixelPecentageZoomOut)
+    endX=int(endX+(endX-startX)*pixelPecentageZoomOut)
+    endY=int(endY+(endX-startX)*pixelPecentageZoomOut)
+    if(startX<0 or startY<0 or endX>image.shape[1] or endY>image.shape[0]):
+        edgeCase=True
+
     mgrsPoints=[]
     if(templateIndex==0):
-        gridName=input("Enter grid zone designator and identifier: ").upper()
-        topLeft=input("Enter top-left point: ").upper()
-        topRight=input("Enter top-right point: ").upper()
-        bottomLeft=input("Enter bottom-left point: ").upper()
-        bottomRight=input("Enter bottom-right point: ").upper()
-        mgrsPoints.append(gridName+topLeft)
-        mgrsPoints.append(gridName+topRight)
-        mgrsPoints.append(gridName+bottomLeft)
-        mgrsPoints.append(gridName+bottomRight)
+        cv2.imshow("Give Input on Terminal", image)
+        print("Enter grid zone designator and identifier: ")
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+        gridName=input("Press enter to continue").upper()
+
+        # topLeft=input("Enter top-left point: ").upper()
+        # topRight=input("Enter top-right point: ").upper()
+        # bottomLeft=input("Enter bottom-left point: ").upper()
+        # bottomRight=input("Enter bottom-right point: ").upper()
+
+
+        tempImage=image.copy()
+        #request top line coordinate
+        cv2.line(tempImage, (leftTop), (rightTop), (0, 255, 0), thickness=3, lineType=8)
+
+
+        print("Enter top-line coordinate: ")
+        if(edgeCase):
+            cv2.imshow("Give Input on Terminal", tempImage)
+        else:
+            tempImage=tempImage[startY:endY,startX:endX]
+            cv2.imshow("Give Input on Terminal", tempImage)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+        topLine=input("Press enter to continue").upper()
+
+
+        tempImage=image.copy()
+        #request bottom line coordinate
+        cv2.line(tempImage, (leftBot), (RightBot), (0, 255, 0), thickness=3, lineType=8)
+
+        print("Enter bottom-line coordinate: ")
+
+        if(edgeCase):
+            cv2.imshow("Give Input on Terminal", tempImage)
+        else:
+            tempImage=tempImage[startY:endY,startX:endX]
+            cv2.imshow("Give Input on Terminal", tempImage)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+        bottomLine=input("Press enter to continue").upper()
+
+
+        tempImage=image.copy()
+        #request left line coordinate
+        cv2.line(tempImage, (leftTop), (leftBot), (0, 255, 0), thickness=3, lineType=8)
+        print("Enter left-line coordinate: ")
+        if(edgeCase):
+            cv2.imshow("Give Input on Terminal", tempImage)
+        else:
+            tempImage=tempImage[startY:endY,startX:endX]
+            cv2.imshow("Give Input on Terminal", tempImage)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+        leftLine=input("Press enter to continue").upper()
+
+        tempImage=image.copy()
+        #request right line coordinate
+        cv2.line(tempImage, (rightTop), (RightBot), (0, 255, 0), thickness=3, lineType=8)
+
+
+        print("Enter right-line coordinate: ")
+        if(edgeCase):
+            cv2.imshow("Give Input on Terminal", tempImage)
+        else:
+            tempImage=tempImage[startY:endY,startX:endX]
+            cv2.imshow("Give Input on Terminal", tempImage)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+        rightLine=input("Press enter to continue").upper()
+
+        mgrsPoints.append(gridName+leftLine+topLine)
+        mgrsPoints.append(gridName+rightLine+topLine)
+        mgrsPoints.append(gridName+leftLine+bottomLine)
+        mgrsPoints.append(gridName+rightLine+bottomLine)
+
+        # mgrsPoints.append(gridName+topLeft)
+        # mgrsPoints.append(gridName+topRight)
+        # mgrsPoints.append(gridName+bottomLeft)
+        # mgrsPoints.append(gridName+bottomRight)
 
     if(templateIndex==1):
-        gridName=input("Enter grid zone designator and identifier: ").upper()
-        point=input("Enter point: ").upper()
-        mgrsPoints.append(gridName+point)
+
+        edgeCase=False
+        pixelPecentageZoomOut=0.15
+        startX=int(startX-(endX-startX)*pixelPecentageZoomOut)
+        startY=int(startY-(endY-startY)*pixelPecentageZoomOut)
+        endX=int(endX+(endX-startX)*pixelPecentageZoomOut)
+        endY=int(endY+(endX-startX)*pixelPecentageZoomOut)
+        if(startX<0 or startY<0 or endX>image.shape[1] or endY>image.shape[0]):
+            edgeCase=True
+
+        cv2.imshow("Give Input on Terminal", image)
+        print("Enter grid zone designator and identifier: ")
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+        gridName=input("Press enter to continue").upper()
+
+        tempImage=image.copy()
+        #request top line coordinate
+        cv2.line(tempImage, (leftTop), (leftTop[0]+endX-startX,leftTop[1]), (0, 255, 0), thickness=3, lineType=8)
+        cv2.line(tempImage, (leftTop), (leftTop[0]-endX-startX,leftTop[1]), (0, 255, 0), thickness=3, lineType=8)
+
+
+
+        print("Enter horizontal-line coordinate: ")
+        if(edgeCase):
+            cv2.imshow("Give Input on Terminal", tempImage)
+        else:
+            tempImage=tempImage[startY:endY,startX:endX]
+            cv2.imshow("Give Input on Terminal", tempImage)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+        horizontalLine=input("Press enter to continue").upper()
+
+
+        tempImage=image.copy()
+        #request bottom line coordinate
+        cv2.line(tempImage, (leftTop), (leftTop[0],leftTop[1]+endY-startY), (0, 255, 0), thickness=3, lineType=8)
+        cv2.line(tempImage, (leftTop), (leftTop[0],leftTop[1]-endY-startY), (0, 255, 0), thickness=3, lineType=8)
+
+        print("Enter verticle-line coordinate: ")
+
+        if(edgeCase):
+            cv2.imshow("Give Input on Terminal", tempImage)
+        else:
+            tempImage=tempImage[startY:endY,startX:endX]
+            cv2.imshow("Give Input on Terminal", tempImage)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+        verticleLine=input("Press enter to continue").upper()
+
+
+
+        mgrsPoints.append(gridName+verticleLine+horizontalLine)
     return mgrsPoints
         
 
@@ -1035,8 +1168,7 @@ def SearchROI(image,template,templateIndex,visualize=False):
         print("No Match is selected, exiting.")
         exit()
     
-    mgrsPoints=[]
-    mgrsPoints=getMGRSPoints(templateIndex)
+
 
     # else:
     #     found=multiScaleMatchingTParallel(roi,template)
@@ -1045,7 +1177,7 @@ def SearchROI(image,template,templateIndex,visualize=False):
     matchScore, (detectedX,detectedY),tH,tW=found
     found=matchScore,(roiXmin+detectedX,roiYmin+detectedY),tH,tW
 
-    return found,mgrsPoints
+    return found
 
 def main():
     verbose=False
@@ -1141,13 +1273,13 @@ def main():
 
             if(markerInput==1):
                 # startTime=time.perf_counter()
-                found,mgrsPoints=SearchROI(image,template,0,visualize)
+                found=SearchROI(image,template,0,visualize)
                 # endTime=time.perf_counter()
                 # print("First PatternTime: ",endTime-startTime)
 
                 # startTime=time.perf_counter()
                 # mgrsAllPoints=mgrsPoints.copy()
-                mgrsAllPoints+=mgrsPoints
+
 
                     
                 
@@ -1271,7 +1403,9 @@ def main():
                 
                 
                 leftTop,rightTop,leftBot,RightBot=ReturnPoints(pointsOnBigImage)
-
+                mgrsPoints=[]
+                mgrsPoints=getMGRSPoints(0,image,(startX,startY,endX,endY),leftTop,rightTop,leftBot,RightBot)
+                mgrsAllPoints+=mgrsPoints
                 # allDetectedPoints+=[leftTop,rightTop,leftBot,RightBot]
                 allDetectedPoints=np.concatenate ((allDetectedPoints,[leftTop,rightTop,leftBot,RightBot]),0)
 
@@ -1285,12 +1419,10 @@ def main():
 
             # startTime=time.perf_counter()
             elif(markerInput==2):
-                found,mgrsPoints=SearchROI(image,template2,1,visualize)
+                found=SearchROI(image,template2,1,visualize)
                 # endTime=time.perf_counter()
                 # print("Second PatternTime: ",endTime-startTime)
-                mgrsAllPoints+=mgrsPoints
 
-                print(mgrsAllPoints)
 
 
 
@@ -1334,9 +1466,14 @@ def main():
                     cv2.circle(allDetectionsImage,(x+startX,y+startY),2,(0,255,0),-1)
                     pointsOnBigImage.append([x+startX,y+startY])
                 pointsOnBigImage=np.array(pointsOnBigImage,int)
+                
+                mgrsPoints=[]
+                mgrsPoints=getMGRSPoints(1,image,(startX,startY,endX,endY),pointsOnBigImage[0])
+                mgrsAllPoints+=mgrsPoints
 
                 allDetectedPoints=np.concatenate ((allDetectedPoints,pointsOnBigImage),0)
                 # allDetectedPoints+=pointsOnBigImage
+        print(mgrsAllPoints)
         
         if(not np.any(allDetectedPoints)):
             print("No Searches made, exiting.")
