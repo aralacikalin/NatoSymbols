@@ -7,9 +7,13 @@ import numpy as np
 import imutils
 import glob
 
-from keras.models import Model
-from keras.layers import Input, Conv2D, MaxPooling2D, UpSampling2D, BatchNormalization, Flatten, Dense
 from sklearn.neighbors import NearestNeighbors
+import keras
+from keras.layers import Input, Conv2D, MaxPooling2D, Conv2DTranspose, Reshape, UpSampling2D, Flatten, Dense, Lambda, BatchNormalization
+from keras.models import Model
+import keras.backend as K
+import tensorflow as tf
+from keras.losses import mse
 
 
 def argParser():
@@ -200,25 +204,86 @@ def modelTrajectory():
 
     return model
 
+
+def Sampling(inputs):
+    mean, log_var = inputs
+    return K.random_normal(tf.shape(mean)) * K.exp(log_var / 2) + mean
+
+
+def model_version11():
+    # autoencoder model
+    beta_value = 1
+    # encoder
+    input = Input(shape=(64, 64, 1))
+    x = Conv2D(32, (3, 3), strides=(2, 2), activation='relu', padding='same')(input)
+    x = Conv2D(32, (3, 3), strides=(2, 2), activation='relu', padding='same')(x)
+    x = Conv2D(32, (3, 3), strides=(2, 2), activation='relu', padding='same')(x)
+    x = Conv2D(32, (3, 3), strides=(2, 2), activation='relu', padding='same')(x)
+    x = Flatten()(x)
+    x = Dense(256, activation='relu')(x)
+    x = Dense(256, activation='relu')(x)
+    codings_mean = keras.layers.Dense(10, name="encoder_mean")(x)
+    codings_log_var = keras.layers.Dense(10, name="encoder_log_var")(x)
+    codings = Lambda(Sampling, name="encoder_output")([codings_mean, codings_log_var])
+    variational_encoder = keras.models.Model(inputs=[input], outputs=[codings_mean, codings_log_var, codings],
+                                             name="encoder")
+
+    # decoder
+    decoder_inputs = keras.layers.Input(shape=(10))
+    z = Dense(256, activation='relu')(decoder_inputs)
+    z = Dense(256, activation='relu')(z)
+    z = Dense(4 * 4 * 32, activation='relu')(z)
+    z = Reshape((4, 4, 32))(z)
+    z = Conv2DTranspose(32, (3, 3), strides=(2, 2), activation='relu', padding='same')(z)
+    z = Conv2DTranspose(32, (3, 3), strides=(2, 2), activation='relu', padding='same')(z)
+    z = Conv2DTranspose(32, (3, 3), strides=(2, 2), activation='relu', padding='same')(z)
+    z = Conv2DTranspose(32, (3, 3), strides=(2, 2), activation='relu', padding='same')(z)
+    output = Conv2DTranspose(1, (3, 3), activation='sigmoid', padding='same')(z)
+    variational_decoder = keras.models.Model(inputs=[decoder_inputs], outputs=[output], name="decoder")
+
+    _, _, codings = variational_encoder(input)
+    reconstructions = variational_decoder(codings)
+    variational_ae = keras.models.Model(inputs=[input], outputs=[reconstructions], name="autoencoder")
+
+    reconstruction_loss_factor = 1000
+    reconstruction_loss = mse(K.flatten(input), K.flatten(reconstructions))
+    reconstruction_loss *= 64 * 64 * 1
+    kl_loss = -0.5 * beta_value * K.sum(1 + codings_log_var - K.square(codings_mean) - K.exp(codings_log_var), axis=1)
+    vae_loss = K.mean(reconstruction_loss_factor * reconstruction_loss + kl_loss)
+    variational_ae.add_loss(vae_loss)
+
+    variational_ae.add_metric(kl_loss, name="kl_loss")
+    variational_ae.add_metric(reconstruction_loss, name="reconstruction_loss")
+
+    # latent_loss = -0.5 * beta_value * K.sum(1 + codings_log_var - K.exp(codings_log_var) - K.square(codings_mean), axis=-1)
+    # variational_ae.add_loss(K.mean(latent_loss) / 14400.)
+
+    # print(variational_encoder.summary())
+    # print(variational_decoder.summary())
+    # print(variational_ae.summary())
+
+    return variational_ae
+
+
 def modelBase():
     classes = 6
 
     input = Input(shape=(80, 80, 1))
-    x = Conv2D(64, kernel_size = (3, 3), strides = (1, 1), padding = 'same', activation='relu')(input)
-    x = MaxPooling2D(pool_size=(2, 2), padding = 'same')(x)
+    x = Conv2D(64, kernel_size=(3, 3), strides=(1, 1), padding='same', activation='relu')(input)
     x = BatchNormalization()(x)
-    x = Conv2D(64, kernel_size = (3, 3), strides = (1, 1), padding = 'same', activation='relu')(x)
-    x = MaxPooling2D(pool_size=(2, 2), padding = 'same')(x)
+    x = MaxPooling2D(pool_size=(2, 2), padding='same')(x)
+    x = Conv2D(64, kernel_size=(3, 3), strides=(1, 1), padding='same', activation='relu')(x)
     x = BatchNormalization()(x)
-    x = Conv2D(128, kernel_size = (3, 3), strides = (1, 1), padding = 'same', activation='relu')(x)
-    x = MaxPooling2D(pool_size=(2, 2), padding = 'same')(x)
+    x = MaxPooling2D(pool_size=(2, 2), padding='same')(x)
+    x = Conv2D(128, kernel_size=(3, 3), strides=(1, 1), padding='same', activation='relu')(x)
     x = BatchNormalization()(x)
-    x = Conv2D(128, kernel_size = (3, 3), strides = (1, 1), padding = 'same', activation='relu')(x)
-    x = MaxPooling2D(pool_size=(2, 2), padding = 'same')(x)
+    x = MaxPooling2D(pool_size=(2, 2), padding='same')(x)
+    x = Conv2D(128, kernel_size=(3, 3), strides=(1, 1), padding='same', activation='relu')(x)
     x = BatchNormalization()(x)
-    x = Dense(256, activation='relu')(x)
-    x = Dense(256, activation='relu')(x)
+    x = MaxPooling2D(pool_size=(2, 2), padding='same')(x)
     x = Flatten()(x)
+    x = Dense(256, activation='relu')(x)
+    x = Dense(256, activation='relu')(x)
     x = Dense(classes, activation='softmax')(x)
 
     model = Model(inputs=input, outputs=x)
@@ -241,9 +306,8 @@ class symbolViz:
         self.__counterattackData = None
         self.__mainAttackData = None
 
-        self.__dim = (120, 120)
+        self.__dim = (64, 64)
         self.__dim_base = (80, 80)
-
 
     def main(self):
 
@@ -401,38 +465,39 @@ class symbolViz:
         features_reshape = None
 
         resized_img = cv2.resize(mainImageSymbol, self.__dim, interpolation=cv2.INTER_AREA)
-        formatImage = np.array([resized_img])
+        binImage = np.where(resized_img <= 100, 0, 255)
+        formatImage = np.array([binImage])
         formatImage = formatImage.astype('float32') / 255.
         formatImage = formatImage.reshape(formatImage.shape[0], formatImage.shape[1], formatImage.shape[2], 1)
 
         if symbolClass == 0:
-            self.__advanceToContactModel.load_weights('./trajectoryModels/advance_to_contact_trajectory_autoencoder_270223.h5')
-            encoder = Model(inputs=self.__advanceToContactModel.input, outputs=self.__advanceToContactModel.get_layer("encoded").output)
-            predicted = encoder.predict(formatImage)
+            self.__advanceToContactModel.load_weights('./trajectoryModels/advance_to_contact_trajectory_autoencoder_model11_beta1_2404_0.h5')
+            encoder = Model(inputs=self.__advanceToContactModel.input, outputs=self.__advanceToContactModel.get_layer("encoder").output)
+            _, _, predicted = encoder.predict(formatImage)
 
             load_features = self.__advanceToContactData.item().get("features")
             load_images = self.__advanceToContactData.item().get("images")
             features_reshape = load_features.reshape((-1, np.prod((load_features.shape[1:]))))
         elif symbolClass == 2:
-            self.__attackModel.load_weights('./trajectoryModels/attack_trajectory_autoencoder_270223.h5')
-            encoder = Model(inputs=self.__attackModel.input, outputs=self.__attackModel.get_layer("encoded").output)
-            predicted = encoder.predict(formatImage)
+            self.__attackModel.load_weights('./trajectoryModels/attack_trajectory_autoencoder_model11_beta1_2404_0.h5')
+            encoder = Model(inputs=self.__attackModel.input, outputs=self.__attackModel.get_layer("encoder").output)
+            _, _, predicted = encoder.predict(formatImage)
 
             load_features = self.__attackData.item().get("features")
             load_images = self.__attackData.item().get("images")
             features_reshape = load_features.reshape((-1, np.prod((load_features.shape[1:]))))
         elif symbolClass == 9:
-            self.__counterattackModel.load_weights('./trajectoryModels/counterattack_trajectory_autoencoder_270223.h5')
-            encoder = Model(inputs=self.__counterattackModel.input, outputs=self.__counterattackModel.get_layer("encoded").output)
-            predicted = encoder.predict(formatImage)
+            self.__counterattackModel.load_weights('./trajectoryModels/counterattack_trajectory_autoencoder_model11_beta1_2404_0.h5')
+            encoder = Model(inputs=self.__counterattackModel.input, outputs=self.__counterattackModel.get_layer("encoder").output)
+            _, _, predicted = encoder.predict(formatImage)
 
             load_features = self.__counterattackData.item().get("features")
             load_images = self.__counterattackData.item().get("images")
             features_reshape = load_features.reshape((-1, np.prod((load_features.shape[1:]))))
         elif symbolClass == 18:
-            self.__mainAttackModel.load_weights('./trajectoryModels/main_attack_trajectory_autoencoder_270223.h5')
-            encoder = Model(inputs=self.__mainAttackModel.input, outputs=self.__mainAttackModel.get_layer("encoded").output)
-            predicted = encoder.predict(formatImage)
+            self.__mainAttackModel.load_weights('./trajectoryModels/main_trajectory_autoencoder_model11_beta1_2404_0.h5')
+            encoder = Model(inputs=self.__mainAttackModel.input, outputs=self.__mainAttackModel.get_layer("encoder").output)
+            _, _, predicted = encoder.predict(formatImage)
 
             load_features = self.__mainAttackData.item().get("features")
             load_images = self.__mainAttackData.item().get("images")
@@ -519,12 +584,13 @@ class symbolViz:
 
         resized_img = cv2.resize(mainImageSymbol, self.__dim_base, interpolation=cv2.INTER_AREA)
         reshaped_img = resized_img.reshape(1, 80, 80)
+        binImage = np.where(reshaped_img <= 100, 0, 255)
 
         model = modelBase()
-        model.load_weights('./baseModel/base_pose_model_1803.h5')
-        predicted_label = model.predict(reshaped_img, verbose=0)
+        model.load_weights('./baseModel/pose_base_model_2104.h5')
+        predicted_label = model.predict(binImage, verbose=0)
         pLabel = np.argmax(predicted_label)
-        liClassesBase = ['otse_k', 'otse_l', 'parem_n', 'parem_y', 'vasak_n', 'vasak_y']
+        liClassesBase = ['otse_l', 'otse_k', 'parem_n', 'parem_y', 'vasak_n', 'vasak_y']
         strLabel = liClassesBase[pLabel]
 
         if symbolClass == 0:
@@ -572,15 +638,15 @@ class symbolViz:
 
 
     def trajectoryModelsAndData(self):
-        self.__advanceToContactModel = modelTrajectory()
-        self.__attackModel = modelTrajectory()
-        self.__counterattackModel = modelTrajectory()
-        self.__mainAttackModel = modelTrajectory()
+        self.__advanceToContactModel = model_version11()
+        self.__attackModel = model_version11()
+        self.__counterattackModel = model_version11()
+        self.__mainAttackModel = model_version11()
 
-        self.__advanceToContactData = np.load("./trajectoryData/advance_to_contact_trajectory_data_0103.npy", allow_pickle=True)
-        self.__attackData = np.load("./trajectoryData/attack_trajectory_data_0103.npy", allow_pickle=True)
-        self.__counterattackData = np.load("./trajectoryData/counterattack_trajectory_data_0103.npy", allow_pickle=True)
-        self.__mainAttackData = np.load("./trajectoryData/main_attack_trajectory_data_0103.npy", allow_pickle=True)
+        self.__advanceToContactData = np.load("./trajectoryData/advance_to_contact_trajectory_data_model11_1_2404_0.npy", allow_pickle=True)
+        self.__attackData = np.load("./trajectoryData/attack_trajectory_data_model11_1_2404_0.npy", allow_pickle=True)
+        self.__counterattackData = np.load("./trajectoryData/counterattack_trajectory_data_model11_1_2404_0.npy", allow_pickle=True)
+        self.__mainAttackData = np.load("./trajectoryData/main_attack_trajectory_data_model11_1_2404_0.npy", allow_pickle=True)
 
 
 symbolViz().main()

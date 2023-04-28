@@ -37,8 +37,11 @@ def main():
                 h = int(float(line.split(" ")[4]) * imageH + 25)
 
                 crop_image = image[y:y+h, x:x+w]
+                # print(crop_image.shape)
                 tmp_list_class.append(int(line.split(" ")[0]))
                 dim = (80, 80)
+                # cv2.imshow("Test", crop_image)
+                # cv2.waitKey()
                 resized_img = cv2.resize(crop_image, dim, interpolation = cv2.INTER_AREA)
 
                 # Predict
@@ -64,6 +67,7 @@ def main():
 
         with open(viz_labels + str(name).split(".")[0] + ".txt", "w") as f_w:
             f_w.write(new_lines)
+
 
 def modelCNN():
     classes = 360
