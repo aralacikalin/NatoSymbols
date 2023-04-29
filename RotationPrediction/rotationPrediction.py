@@ -14,7 +14,7 @@ def main():
             22: 'retain', 23: 'retire', 24: 'screen', 25: 'secure', 26: 'seize', 27: 'support_by_fire',
             28: 'suppress', 29: 'turn', 30: 'withdraw'}
 
-    model = modelCNN()
+    model = CNNModel2()
 
     images = './images/'
     labels = './labels/'
@@ -46,7 +46,7 @@ def main():
 
                 # Predict
                 reshaped_img = resized_img.reshape(1, 80, 80)
-                model.load_weights('./rotation_models/'+Dict[int(line.split(" ")[0])]+'_rotation_model_31_1203.h5')
+                model.load_weights('./rotation_models/'+Dict[int(line.split(" ")[0])]+'_rotation_model_31_1804.h5')
                 predicted_rotation = model.predict(reshaped_img, verbose=0)
                 degreePrediction = np.argmax(predicted_rotation)
                 line += f" {degreePrediction}\n"
@@ -69,28 +69,31 @@ def main():
             f_w.write(new_lines)
 
 
-def modelCNN():
+def CNNModel2():
     classes = 360
 
     input = Input(shape=(80, 80, 1))
-    x = Conv2D(32, kernel_size=(3, 3), strides=(1, 1), padding='same', activation='relu')(input)
-    x = MaxPooling2D(pool_size=(2, 2), padding='same')(x)
+    x = Conv2D(32, kernel_size = (3, 3), strides = (1, 1), padding = 'same', activation='relu')(input)
     x = BatchNormalization()(x)
-    x = Conv2D(32, kernel_size=(3, 3), strides=(1, 1), padding='same', activation='relu')(x)
-    x = MaxPooling2D(pool_size=(2, 2), padding='same')(x)
+    x = MaxPooling2D(pool_size=(2, 2), padding = 'same')(x)
+    x = Conv2D(32, kernel_size = (3, 3), strides = (1, 1), padding = 'same', activation='relu')(x)
     x = BatchNormalization()(x)
-    x = Conv2D(64, kernel_size=(3, 3), strides=(1, 1), padding='same', activation='relu')(x)
-    x = MaxPooling2D(pool_size=(2, 2), padding='same')(x)
+    x = MaxPooling2D(pool_size=(2, 2), padding = 'same')(x)
+    x = Conv2D(64, kernel_size = (3, 3), strides = (1, 1), padding = 'same', activation='relu')(x)
     x = BatchNormalization()(x)
-    x = Conv2D(64, kernel_size=(3, 3), strides=(1, 1), padding='same', activation='relu')(x)
-    x = MaxPooling2D(pool_size=(2, 2), padding='same')(x)
+    x = MaxPooling2D(pool_size=(2, 2), padding = 'same')(x)
+    x = Conv2D(64, kernel_size = (3, 3), strides = (1, 1), padding = 'same', activation='relu')(x)
     x = BatchNormalization()(x)
-    x = Dense(64, activation='relu')(x)
-    x = Dense(64, activation='relu')(x)
+    x = MaxPooling2D(pool_size=(2, 2), padding = 'same')(x)
+    x = Conv2D(64, kernel_size = (3, 3), strides = (1, 1), padding = 'same', activation='relu')(x)
+    x = BatchNormalization()(x)
     x = Flatten()(x)
+    x = Dense(512, activation='relu')(x)
+    x = Dense(512, activation='relu')(x)
     x = Dense(classes, activation='softmax')(x)
 
     model = Model(inputs=input, outputs=x)
+    # print(model.summary())
 
     return model
 
