@@ -1,13 +1,15 @@
-This folder contains the modifications to `val.py` and `utils/metrics.py` and yaml files for training a YOLO model.
+This folder contains the modifications to `val.py`, `train.py`, `utils/metrics.py`, `utils/plots.py`, `utils/torch_utils.py` and yaml files for training a YOLO model.
 
-The contents of this folder can be directly copied to yolov5 folder which is cloned from https://github.com/ultralytics/yolov5.git to use the modified version of val.py and rest of the files.
+The contents of this folder can be directly copied to yolov5 folder which is cloned from https://github.com/ultralytics/yolov5.git to use the modified version of the scripts and rest of the files.
 
-`val.py` is modified to output the images with predictions with the given confidence threshold. These images are created when `--save-txt` argument is given. Also the output results table now also includes the results at given confidence threshold and at the max f1 score confidence threshold, and these will be saved as text files into the experiment folder.
+`val_symbols_detection.py` is created from `val.py` to output the images with predictions with the given confidence threshold. These images are created when `--save-txt` argument is given. Also the output results table now also includes the results at given confidence threshold and at the max f1 score confidence threshold, and these will be saved as text files into the experiment folder.
 
-`utils/metrics.py` is modified to also report this confidence threshold at max f1 score to `val.py`
+`utils/metrics.py` is modified and contains functions to calculate symbol detection metrics.
+`train.py` and `utils/torch_utils.py` is modified modifed to have early stopping tolerance, currently it is harcoded in the line 255 of `train.py` the variable name which adjusts this tolerance is `min_delta`.`
+in `plots.py` a function to create bounding boxes with pink overlay if the detection is FP is implemented. This function is used on `val_symbols_detection.py` to visualize the detections. 
 
 
-example usage of `val.py` 
+example usage of `val_symbols_detection.py` 
 
 ```
 python val.py --weights <checkpoint_path> --data <path_to_data_yaml> --conf-thres <confidence_threshold> --name <experiment_name> --save-txt --task test --augment
