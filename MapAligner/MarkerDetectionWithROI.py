@@ -340,7 +340,7 @@ def multiScaleMatchingT(image,template,visualize):
     # loop over the scales of the image
     i=0
     results=[]
-    for scale in np.linspace(0.2, 1, 35)[::-1]: #! 50 worked
+    for scale in np.linspace(0.2, 1, 40)[::-1]: #! 50 worked
         # resize the image according to the scale, and keep track
         # of the ratio of the resizing
         resized = imutils.resize(template, width = int(template.shape[1] * scale))
@@ -956,17 +956,24 @@ def getMGRSPoints(templateIndex,image,markerbbox,leftTop=0,rightTop=0,leftBot=0,
     startX,startY,endX,endY =markerbbox
 
     edgeCase=False
-    pixelPecentageZoomOut=0.1
+    pixelPecentageZoomOut=1
     startX=int(startX-(endX-startX)*pixelPecentageZoomOut)
     startY=int(startY-(endY-startY)*pixelPecentageZoomOut)
     endX=int(endX+(endX-startX)*pixelPecentageZoomOut)
     endY=int(endY+(endX-startX)*pixelPecentageZoomOut)
-    if(startX<0 or startY<0 or endX>image.shape[1] or endY>image.shape[0]):
-        edgeCase=True
+    if(startX<0):
+        startX=0
+    if(startY<0):
+        startY=0
+    if(endX>image.shape[1]):
+        endX=image.shape[1]-1
+    if(endY>image.shape[0]):
+        endY=image.shape[0]-1
+
 
     mgrsPoints=[]
     if(templateIndex==0):
-        cv2.imshow("Give Input on Terminal", image)
+        cv2.imshow("Give Input on Terminal", image[startY:endY,startX:endX])
         print("Enter grid zone designator and identifier: ")
         cv2.waitKey(0)
         cv2.destroyAllWindows()
@@ -1050,16 +1057,22 @@ def getMGRSPoints(templateIndex,image,markerbbox,leftTop=0,rightTop=0,leftBot=0,
 
     if(templateIndex==1):
 
-        edgeCase=False
-        pixelPecentageZoomOut=0.15
-        startX=int(startX-(endX-startX)*pixelPecentageZoomOut)
-        startY=int(startY-(endY-startY)*pixelPecentageZoomOut)
-        endX=int(endX+(endX-startX)*pixelPecentageZoomOut)
-        endY=int(endY+(endX-startX)*pixelPecentageZoomOut)
-        if(startX<0 or startY<0 or endX>image.shape[1] or endY>image.shape[0]):
-            edgeCase=True
+        # edgeCase=False
+        # pixelPecentageZoomOut=0.15
+        # startX=int(startX-(endX-startX)*pixelPecentageZoomOut)
+        # startY=int(startY-(endY-startY)*pixelPecentageZoomOut)
+        # endX=int(endX+(endX-startX)*pixelPecentageZoomOut)
+        # endY=int(endY+(endX-startX)*pixelPecentageZoomOut)
+        # if(startX<0):
+        #     startX=0
+        # if(startY<0):
+        #     startY=0
+        # if(endX>image.shape[1]):
+        #     endX=image.shape[1]-1
+        # if(endY>image.shape[0]):
+        #     endY=image.shape[0]-1
 
-        cv2.imshow("Give Input on Terminal", image)
+        cv2.imshow("Give Input on Terminal", image[startY:endY,startX:endX])
         print("Enter grid zone designator and identifier: ")
         cv2.waitKey(0)
         cv2.destroyAllWindows()
@@ -1584,7 +1597,7 @@ def main():
 #! parameters for demo
 # D:/Miniconda3.7/envs/symbols3/python.exe .\MarkerDetectionWithROI.py -t .\testTemplate6.jpg -t2 ./crossTemplate7.jpg -i .\exampleToPlaceOnMap
 
-
+#  D:/Miniconda3.7/envs/symbols3/python.exe .\MarkerDetectionWithROI.py -t .\testTemplate6.jpg -t2 ./crossTemplate7.jpg -i "D:\Workplace\Symbols\YOLO-Detection\yolov5\DEMOTEST"
     
 if __name__=="__main__":
     main()
