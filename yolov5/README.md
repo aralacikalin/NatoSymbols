@@ -5,7 +5,7 @@ The contents of this folder can be directly copied to yolov5 folder which is clo
 `val_symbols_detection.py` is created from `val.py` to output the images with predictions with the given confidence threshold. These images are created when `--save-txt` argument is given. Also the output results table now also includes the results at given confidence threshold and at the max f1 score confidence threshold, and these will be saved as text files into the experiment folder.
 
 `utils/metrics.py` is modified and contains functions to calculate symbol detection metrics.
-`train.py` and `utils/torch_utils.py` is modified modifed to have early stopping tolerance, currently it is harcoded in the line 255 of `train.py` the variable name which adjusts this tolerance is `min_delta`.`
+`train.py` and `utils/torch_utils.py` is modified modifed to have early stopping tolerance, currently it is harcoded in the line 255 of `train.py` the variable name which adjusts this tolerance is `min_delta`.
 in `plots.py` a function to create bounding boxes with pink overlay if the detection is FP is implemented. This function is used on `val_symbols_detection.py` to visualize the detections. 
 
 
