@@ -14,7 +14,7 @@ def main():
             22: 'retain', 23: 'retire', 24: 'screen', 25: 'secure', 26: 'seize', 27: 'support_by_fire',
             28: 'suppress', 29: 'turn', 30: 'withdraw'}
 
-    model = CNNModel2()
+    model = CNNModel()
 
     images = './images/'
     labels = './labels/'
@@ -69,7 +69,7 @@ def main():
             f_w.write(new_lines)
 
 
-def CNNModel2():
+def CNNModel():
     classes = 360
 
     input = Input(shape=(80, 80, 1))
