@@ -15,6 +15,8 @@ import keras.backend as K
 import tensorflow as tf
 from keras.losses import mse
 
+from scipy import ndimage
+
 
 def argParser():
     parser = argparse.ArgumentParser()
@@ -265,6 +267,53 @@ def model_version11():
     return variational_ae
 
 
+def model_version12():
+    # autoencoder model
+    beta_value = 50
+    # encoder
+    input = Input(shape=(80, 80, 1))
+    x = Conv2D(32, (3, 3), strides=(2, 2), activation='relu', padding='same')(input)
+    x = Conv2D(32, (3, 3), strides=(2, 2), activation='relu', padding='same')(x)
+    x = Conv2D(32, (3, 3), strides=(2, 2), activation='relu', padding='same')(x)
+    x = Conv2D(32, (3, 3), strides=(2, 2), activation='relu', padding='same')(x)
+    x = Flatten()(x)
+    x = Dense(256, activation='relu')(x)
+    x = Dense(256, activation='relu')(x)
+    codings_mean = keras.layers.Dense(10, name="encoder_mean")(x)
+    codings_log_var = keras.layers.Dense(10, name="encoder_log_var")(x)
+    codings = Lambda(Sampling, name="encoder_output")([codings_mean, codings_log_var])
+    variational_encoder = keras.models.Model(inputs=[input], outputs=[codings_mean, codings_log_var, codings], name="encoder")
+
+    #decoder
+    decoder_inputs = keras.layers.Input(shape=(10))
+    z = Dense(256, activation='relu')(decoder_inputs)
+    z = Dense(256, activation='relu')(z)
+    z = Dense(5*5*32, activation='relu')(z)
+    z = Reshape((5, 5, 32))(z)
+    z = Conv2DTranspose(32, (3, 3), strides=(2, 2), activation='relu', padding='same')(z)
+    z = Conv2DTranspose(32, (3, 3), strides=(2, 2), activation='relu', padding='same')(z)
+    z = Conv2DTranspose(32, (3, 3), strides=(2, 2), activation='relu', padding='same')(z)
+    z = Conv2DTranspose(32, (3, 3), strides=(2, 2), activation='relu', padding='same')(z)
+    output = Conv2DTranspose(1, (3, 3), activation='sigmoid', padding='same')(z)
+    variational_decoder = keras.models.Model(inputs=[decoder_inputs], outputs=[output], name="decoder")
+
+    _, _, codings = variational_encoder(input)
+    reconstructions = variational_decoder(codings)
+    variational_ae = keras.models.Model(inputs=[input], outputs=[reconstructions], name="autoencoder")
+
+    reconstruction_loss_factor = 1000
+    reconstruction_loss = mse(K.flatten(input), K.flatten(reconstructions))
+    reconstruction_loss *= 80 * 80 * 1
+    kl_loss = -0.5 * beta_value * K.sum(1 + codings_log_var - K.square(codings_mean) - K.exp(codings_log_var), axis=1)
+    vae_loss = K.mean(reconstruction_loss_factor * reconstruction_loss + kl_loss)
+    variational_ae.add_loss(vae_loss)
+
+    variational_ae.add_metric(kl_loss, name="kl_loss")
+    variational_ae.add_metric(reconstruction_loss, name="reconstruction_loss")
+
+    return variational_ae
+
+
 def modelBase():
     classes = 6
 
@@ -306,7 +355,7 @@ class symbolViz:
         self.__counterattackData = None
         self.__mainAttackData = None
 
-        self.__dim = (64, 64)
+        self.__dim = (80, 80)
         self.__dim_base = (80, 80)
 
     def main(self):
@@ -464,14 +513,15 @@ class symbolViz:
         load_images = None
         features_reshape = None
 
-        resized_img = cv2.resize(mainImageSymbol, self.__dim, interpolation=cv2.INTER_AREA)
+        img_rotated = ndimage.rotate(mainImageSymbol, symbolRotation, mode='constant', cval=255)
+        resized_img = cv2.resize(img_rotated, self.__dim, interpolation=cv2.INTER_AREA)
         binImage = np.where(resized_img <= 100, 0, 255)
         formatImage = np.array([binImage])
         formatImage = formatImage.astype('float32') / 255.
         formatImage = formatImage.reshape(formatImage.shape[0], formatImage.shape[1], formatImage.shape[2], 1)
 
         if symbolClass == 0:
-            self.__advanceToContactModel.load_weights('./trajectoryModels/advance_to_contact_trajectory_autoencoder_model11_beta1_2404_0.h5')
+            self.__advanceToContactModel.load_weights('./trajectoryModels/advance_to_contact_autoencoder_model12_b50_10.h5')
             encoder = Model(inputs=self.__advanceToContactModel.input, outputs=self.__advanceToContactModel.get_layer("encoder").output)
             _, _, predicted = encoder.predict(formatImage)
 
@@ -479,7 +529,7 @@ class symbolViz:
             load_images = self.__advanceToContactData.item().get("images")
             features_reshape = load_features.reshape((-1, np.prod((load_features.shape[1:]))))
         elif symbolClass == 2:
-            self.__attackModel.load_weights('./trajectoryModels/attack_trajectory_autoencoder_model11_beta1_2404_0.h5')
+            self.__attackModel.load_weights('./trajectoryModels/attack_autoencoder_model12_b50_10.h5')
             encoder = Model(inputs=self.__attackModel.input, outputs=self.__attackModel.get_layer("encoder").output)
             _, _, predicted = encoder.predict(formatImage)
 
@@ -487,7 +537,7 @@ class symbolViz:
             load_images = self.__attackData.item().get("images")
             features_reshape = load_features.reshape((-1, np.prod((load_features.shape[1:]))))
         elif symbolClass == 9:
-            self.__counterattackModel.load_weights('./trajectoryModels/counterattack_trajectory_autoencoder_model11_beta1_2404_0.h5')
+            self.__counterattackModel.load_weights('./trajectoryModels/counterattack_autoencoder_model12_b50_10.h5')
             encoder = Model(inputs=self.__counterattackModel.input, outputs=self.__counterattackModel.get_layer("encoder").output)
             _, _, predicted = encoder.predict(formatImage)
 
@@ -495,7 +545,7 @@ class symbolViz:
             load_images = self.__counterattackData.item().get("images")
             features_reshape = load_features.reshape((-1, np.prod((load_features.shape[1:]))))
         elif symbolClass == 18:
-            self.__mainAttackModel.load_weights('./trajectoryModels/main_trajectory_autoencoder_model11_beta1_2404_0.h5')
+            self.__mainAttackModel.load_weights('./trajectoryModels/main_attack_autoencoder_model12_b50_10.h5')
             encoder = Model(inputs=self.__mainAttackModel.input, outputs=self.__mainAttackModel.get_layer("encoder").output)
             _, _, predicted = encoder.predict(formatImage)
 
@@ -638,15 +688,15 @@ class symbolViz:
 
 
     def trajectoryModelsAndData(self):
-        self.__advanceToContactModel = model_version11()
-        self.__attackModel = model_version11()
-        self.__counterattackModel = model_version11()
-        self.__mainAttackModel = model_version11()
+        self.__advanceToContactModel = model_version12()
+        self.__attackModel = model_version12()
+        self.__counterattackModel = model_version12()
+        self.__mainAttackModel = model_version12()
 
-        self.__advanceToContactData = np.load("./trajectoryData/advance_to_contact_trajectory_data_model11_1_2404_0.npy", allow_pickle=True)
-        self.__attackData = np.load("./trajectoryData/attack_trajectory_data_model11_1_2404_0.npy", allow_pickle=True)
-        self.__counterattackData = np.load("./trajectoryData/counterattack_trajectory_data_model11_1_2404_0.npy", allow_pickle=True)
-        self.__mainAttackData = np.load("./trajectoryData/main_attack_trajectory_data_model11_1_2404_0.npy", allow_pickle=True)
+        self.__advanceToContactData = np.load("./trajectoryData/advance_to_contact_data_model12_b50_10.npy", allow_pickle=True)
+        self.__attackData = np.load("./trajectoryData/attack_data_model12_b50_10.npy", allow_pickle=True)
+        self.__counterattackData = np.load("./trajectoryData/counterattack_data_model12_b50_10.npy", allow_pickle=True)
+        self.__mainAttackData = np.load("./trajectoryData/main_attack_data_model12_b50_10.npy", allow_pickle=True)
 
 
 symbolViz().main()
