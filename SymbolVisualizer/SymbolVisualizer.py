@@ -399,11 +399,6 @@ class symbolViz:
             symbolsImage=np.ones((h,w),dtype=np.uint8)
             symbolsImage*=255
 
-            # symbolsImage=cv2.bitwise_not(symbolsImage)
-            # cv2.imshow("Test",symbolsImage,)
-            # cv2.waitKey()
-            # cv2. destroyAllWindows()
-
             classesImages,classesImagesRed=getClasses(opt.classTemplates)
             if bUseTrajectorySymbols:
                 for out in yoloOutput:
