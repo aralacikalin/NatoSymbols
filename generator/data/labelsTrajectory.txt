@@ -1,0 +1,6 @@
+otse_l
+otse_k
+parem_n
+parem_y
+vasak_n
+vasak_y
