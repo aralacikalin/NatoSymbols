@@ -281,7 +281,7 @@ def MapPreparing(image,stringMGRSPoints,detectedPoints,verbose=False,detectionIm
         cv2.imshow("Perspective shifted", pImg)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
-    return pImg,mapImg,imgShape,detectionImage
+    return pImg,mapImg,imgShape,detectionImage,WMCoordinatesBigMap
 
 
 def image_overlay_second_method(img1, img2, location, min_thresh=0.2, originalImg=None , is_transparent=False,alpha=0.3,verbose=False):
@@ -289,6 +289,9 @@ def image_overlay_second_method(img1, img2, location, min_thresh=0.2, originalIm
     h1, w1 = img2.shape[:2]
     x, y = location
     roi = img1[y:y + h1, x:x + w1]
+
+    svgImg=img1.copy()
+    svgImg=cv2.cvtColor(svgImg, cv2.COLOR_BGR2BGRA)
 
     
     thresh_type = cv2.THRESH_BINARY_INV
@@ -311,12 +314,58 @@ def image_overlay_second_method(img1, img2, location, min_thresh=0.2, originalIm
 
     img_bg = cv2.bitwise_and(roi, roi, mask=mask)
     img_fg = cv2.bitwise_and(img2, img2, mask=mask_inv)
+    # cv2.imshow("transparent image", img_bg)
+    # cv2.waitKey(0)
+    svgImg[:,:,3]=mask
 
+    # Create a bitmap from the array
+    print(mask[mask==255])
+    mask[mask==1]=0
+    mask[mask==255]=1
+
+    svgMask=mask
+    
     dst = cv2.add(img_bg, img_fg)
     if is_transparent:
         dst = cv2.addWeighted(dst, alpha, img1[y:y + h1, x:x + w1], 0.9, None)
     img1[y:y + h1, x:x + w1] = dst
-    return img1
+    return img1,mask
+
+
+def createSvg(mask,svg_output = "./output-F.svg"):
+    import potrace
+    import svgwrite
+    h, w = mask.shape[:2]
+    # Step 3: Load the mask image and convert it to a bitmap
+    bmp = potrace.Bitmap(mask)
+
+
+    # Step 4: Trace the bitmap to create a path object
+    path = bmp.trace()
+
+    # Step 5: Create an SVG drawing object
+    drawing = svgwrite.Drawing(svg_output, profile='tiny',size=(w,h))
+    svg_path = drawing.path(fill='black')
+    # Step 6: Iterate over the path curves and add them to the SVG drawing
+    for curve in path:
+        start_point = curve.start_point
+        svg_path.push('M', (start_point[0], start_point[1]))
+        for segment in curve:
+            if isinstance(segment, potrace.BezierSegment):
+                c1 = segment.c1
+                c2 = segment.c2
+                end_point = segment.end_point
+                svg_path.push('C', (c1[0], c1[1]),
+                            (c2[0], c2[1]),
+                            (end_point[0], end_point[1]))
+            elif isinstance(segment, potrace.CornerSegment):
+                svg_path.push('L', (segment.c[0], segment.c[1]))
+        svg_path.push('Z')  # Close the path
+
+    drawing.add(svg_path)
+
+    # Step 10: Save the SVG drawing to a file
+    drawing.save()
 
 
 def multiScaleMatchingT(image,template,visualize):
@@ -1532,9 +1581,9 @@ def main():
         detectedPoints=allDetectedPoints
         if(args["singleImage"] and (args["detection"] is not None)):
             detectionImage = cv2.imread(args["detection"])
-            pImg,mapImg,imgShape,detectionImage=MapPreparing(image,stringMGRSPoints,detectedPoints,detectionImage=detectionImage)
+            pImg,mapImg,imgShape,detectionImage,WMCoordinatesBigMap=MapPreparing(image,stringMGRSPoints,detectedPoints,detectionImage=detectionImage)
         else:
-            pImg,mapImg,imgShape,_=MapPreparing(image,stringMGRSPoints,detectedPoints)
+            pImg,mapImg,imgShape,_,WMCoordinatesBigMap=MapPreparing(image,stringMGRSPoints,detectedPoints)
             detectionImage=None
 
 
@@ -1557,10 +1606,10 @@ def main():
 
         if(detectionImage is not None):
             originalDetectionImage = cv2.imread(args["detection"])
-            detectionImage=image_overlay_second_method(detectionImage, overlay, (0, 0),originalImg=originalDetectionImage,is_transparent=False,verbose=verbose)
+            detectionImage,svgMask=image_overlay_second_method(detectionImage, overlay, (0, 0),originalImg=originalDetectionImage,is_transparent=False,verbose=verbose)
 
             
-        newImg=image_overlay_second_method(pImg, overlay, (0, 0),originalImg=image,is_transparent=False,verbose=verbose)
+        newImg, svgMask=image_overlay_second_method(pImg, overlay, (0, 0),originalImg=image,is_transparent=False,verbose=verbose)
 
         # imagesSavePath="./allImagesWithMap/"
         imagesSavePath=""
@@ -1569,6 +1618,8 @@ def main():
         imageSaveFolder="AllFilms/"
         imageSaveFolder="exampleToPlaceOnMap/"
         imageSaveFolder="PlacedOnMap/"
+
+
         if(not os.path.exists(imageSaveFolder)):
             os.mkdir(imageSaveFolder)
         # verbose=True
@@ -1584,6 +1635,18 @@ def main():
             print(f"{imagesSavePath}{imageSaveFolder}{imageName}")
             pass
 
+        createSvg(svgMask,f"{imagesSavePath}{imageSaveFolder}{imageName}.svg")
+
+        with open(f"{imagesSavePath}{imageSaveFolder}{imageName}-coordinates.txt","w") as coordFile:
+                
+                coordFile.write(f"Web mercator/spherical mercator edges:  \n" )
+
+                coordFile.write(f"west: {WMCoordinatesBigMap[0]} \n" )
+                coordFile.write(f"south: {WMCoordinatesBigMap[1]} \n" )
+                coordFile.write(f"east: {WMCoordinatesBigMap[2]} \n" )
+                coordFile.write(f"north: {WMCoordinatesBigMap[3]} \n" )
+        print("Web mercator/spherical mercator edges: ",WMCoordinatesBigMap)
+        
         print("Image: ",i)
         overallEndTime=time.perf_counter()
         print("Overall Time: ",overallEndTime-overallStartTime)
