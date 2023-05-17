@@ -236,7 +236,7 @@ def MapPreparing(image,stringMGRSPoints,detectedPoints,verbose=False,detectionIm
 
     imgShapeAdds=newImgShape*percentageMore
     
-
+    oDST=mercPoints
     # print(mercPoints)
     dst=mercPoints-mins
     # print(dst)
@@ -253,8 +253,22 @@ def MapPreparing(image,stringMGRSPoints,detectedPoints,verbose=False,detectionIm
 
 
     m= affine(src,dst)
+    #? this below matrix needed for calculating the web mercator coordinate of a point in the image
+    mOrg= affine(src,oDST)
     
     pImg=cv2.warpAffine(image,m,imgShape,borderValue=(255,255,255))
+
+    
+    #! Dummy pixel value later I need to put a function take pixel coordinates and turn in to web mercator coordinates 
+    #! .35vne, this should be switched to read pixel coordinates from a file or smth with information of symbol type 
+    #! and output web mercator coordinates with same formating
+    homogeneous_coord = np.array([2371, 1838 , 1])
+    # homogeneous_coord = np.array([3769,2084 , 1])
+    web_mercator_coord = np.dot(mOrg, homogeneous_coord)
+    # print(WMCoordinatesBigMap[0]-web_mercator_coord[1],WMCoordinatesBigMap[3]+web_mercator_coord[0] )
+    # print(web_mercator_coord[1]*(oMaxs[0]-oMins[0]) + oMins[0],web_mercator_coord[0]*(oMaxs[1]-oMins[1])+oMins[0] )
+    print(web_mercator_coord[1],web_mercator_coord[0])
+
 
     pImg = cv2.flip(pImg, 0)
     # print(pImg.shape)
@@ -281,7 +295,7 @@ def MapPreparing(image,stringMGRSPoints,detectedPoints,verbose=False,detectionIm
         cv2.imshow("Perspective shifted", pImg)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
-    return pImg,mapImg,imgShape,detectionImage
+    return pImg,mapImg,imgShape,detectionImage,WMCoordinatesBigMap
 
 
 def image_overlay_second_method(img1, img2, location, min_thresh=0.2, originalImg=None , is_transparent=False,alpha=0.3,verbose=False):
@@ -289,6 +303,9 @@ def image_overlay_second_method(img1, img2, location, min_thresh=0.2, originalIm
     h1, w1 = img2.shape[:2]
     x, y = location
     roi = img1[y:y + h1, x:x + w1]
+
+    svgImg=img1.copy()
+    svgImg=cv2.cvtColor(svgImg, cv2.COLOR_BGR2BGRA)
 
     
     thresh_type = cv2.THRESH_BINARY_INV
@@ -311,12 +328,58 @@ def image_overlay_second_method(img1, img2, location, min_thresh=0.2, originalIm
 
     img_bg = cv2.bitwise_and(roi, roi, mask=mask)
     img_fg = cv2.bitwise_and(img2, img2, mask=mask_inv)
+    # cv2.imshow("transparent image", img_bg)
+    # cv2.waitKey(0)
+    svgImg[:,:,3]=mask
 
+    # Create a bitmap from the array
+    print(mask[mask==255])
+    mask[mask==1]=0
+    mask[mask==255]=1
+
+    svgMask=mask
+    
     dst = cv2.add(img_bg, img_fg)
     if is_transparent:
         dst = cv2.addWeighted(dst, alpha, img1[y:y + h1, x:x + w1], 0.9, None)
     img1[y:y + h1, x:x + w1] = dst
-    return img1
+    return img1,mask
+
+
+def createSvg(mask,svg_output = "./output-F.svg"):
+    import potrace
+    import svgwrite
+    h, w = mask.shape[:2]
+    # Step 3: Load the mask image and convert it to a bitmap
+    bmp = potrace.Bitmap(mask)
+
+
+    # Step 4: Trace the bitmap to create a path object
+    path = bmp.trace()
+
+    # Step 5: Create an SVG drawing object
+    drawing = svgwrite.Drawing(svg_output, profile='tiny',size=(w,h))
+    svg_path = drawing.path(fill='black')
+    # Step 6: Iterate over the path curves and add them to the SVG drawing
+    for curve in path:
+        start_point = curve.start_point
+        svg_path.push('M', (start_point[0], start_point[1]))
+        for segment in curve:
+            if isinstance(segment, potrace.BezierSegment):
+                c1 = segment.c1
+                c2 = segment.c2
+                end_point = segment.end_point
+                svg_path.push('C', (c1[0], c1[1]),
+                            (c2[0], c2[1]),
+                            (end_point[0], end_point[1]))
+            elif isinstance(segment, potrace.CornerSegment):
+                svg_path.push('L', (segment.c[0], segment.c[1]))
+        svg_path.push('Z')  # Close the path
+
+    drawing.add(svg_path)
+
+    # Step 10: Save the SVG drawing to a file
+    drawing.save()
 
 
 def multiScaleMatchingT(image,template,visualize):
@@ -340,7 +403,7 @@ def multiScaleMatchingT(image,template,visualize):
     # loop over the scales of the image
     i=0
     results=[]
-    for scale in np.linspace(0.2, 1, 35)[::-1]: #! 50 worked
+    for scale in np.linspace(0.2, 1, 40)[::-1]: #! 50 worked
         # resize the image according to the scale, and keep track
         # of the ratio of the resizing
         resized = imutils.resize(template, width = int(template.shape[1] * scale))
@@ -952,23 +1015,169 @@ def ReturnPoints(pointsOnBigImage):
     return leftTopPoint,rightTopPoint,leftBottomPoint,rightBottomPoint
 
 
-def getMGRSPoints(templateIndex):
+def getMGRSPoints(templateIndex,image,markerbbox,leftTop=0,rightTop=0,leftBot=0,RightBot=0):
+    startX,startY,endX,endY =markerbbox
+
+    edgeCase=False
+    pixelPecentageZoomOut=1
+    startX=int(startX-(endX-startX)*pixelPecentageZoomOut)
+    startY=int(startY-(endY-startY)*pixelPecentageZoomOut)
+    endX=int(endX+(endX-startX)*pixelPecentageZoomOut)
+    endY=int(endY+(endX-startX)*pixelPecentageZoomOut)
+    if(startX<0):
+        startX=0
+    if(startY<0):
+        startY=0
+    if(endX>image.shape[1]):
+        endX=image.shape[1]-1
+    if(endY>image.shape[0]):
+        endY=image.shape[0]-1
+
+
     mgrsPoints=[]
     if(templateIndex==0):
-        gridName=input("Enter grid zone designator and identifier: ").upper()
-        topLeft=input("Enter top-left point: ").upper()
-        topRight=input("Enter top-right point: ").upper()
-        bottomLeft=input("Enter bottom-left point: ").upper()
-        bottomRight=input("Enter bottom-right point: ").upper()
-        mgrsPoints.append(gridName+topLeft)
-        mgrsPoints.append(gridName+topRight)
-        mgrsPoints.append(gridName+bottomLeft)
-        mgrsPoints.append(gridName+bottomRight)
+        cv2.imshow("Give Input on Terminal", image[startY:endY,startX:endX])
+        print("Enter grid zone designator and identifier: ")
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+        gridName=input("Press enter to continue").upper()
+
+        # topLeft=input("Enter top-left point: ").upper()
+        # topRight=input("Enter top-right point: ").upper()
+        # bottomLeft=input("Enter bottom-left point: ").upper()
+        # bottomRight=input("Enter bottom-right point: ").upper()
+
+
+        tempImage=image.copy()
+        #request top line coordinate
+        cv2.line(tempImage, (leftTop), (rightTop), (0, 255, 0), thickness=3, lineType=8)
+
+
+        print("Enter top-line coordinate: ")
+        if(edgeCase):
+            cv2.imshow("Give Input on Terminal", tempImage)
+        else:
+            tempImage=tempImage[startY:endY,startX:endX]
+            cv2.imshow("Give Input on Terminal", tempImage)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+        topLine=input("Press enter to continue").upper()
+
+
+        tempImage=image.copy()
+        #request bottom line coordinate
+        cv2.line(tempImage, (leftBot), (RightBot), (0, 255, 0), thickness=3, lineType=8)
+
+        print("Enter bottom-line coordinate: ")
+
+        if(edgeCase):
+            cv2.imshow("Give Input on Terminal", tempImage)
+        else:
+            tempImage=tempImage[startY:endY,startX:endX]
+            cv2.imshow("Give Input on Terminal", tempImage)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+        bottomLine=input("Press enter to continue").upper()
+
+
+        tempImage=image.copy()
+        #request left line coordinate
+        cv2.line(tempImage, (leftTop), (leftBot), (0, 255, 0), thickness=3, lineType=8)
+        print("Enter left-line coordinate: ")
+        if(edgeCase):
+            cv2.imshow("Give Input on Terminal", tempImage)
+        else:
+            tempImage=tempImage[startY:endY,startX:endX]
+            cv2.imshow("Give Input on Terminal", tempImage)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+        leftLine=input("Press enter to continue").upper()
+
+        tempImage=image.copy()
+        #request right line coordinate
+        cv2.line(tempImage, (rightTop), (RightBot), (0, 255, 0), thickness=3, lineType=8)
+
+
+        print("Enter right-line coordinate: ")
+        if(edgeCase):
+            cv2.imshow("Give Input on Terminal", tempImage)
+        else:
+            tempImage=tempImage[startY:endY,startX:endX]
+            cv2.imshow("Give Input on Terminal", tempImage)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+        rightLine=input("Press enter to continue").upper()
+
+        mgrsPoints.append(gridName+leftLine+topLine)
+        mgrsPoints.append(gridName+rightLine+topLine)
+        mgrsPoints.append(gridName+leftLine+bottomLine)
+        mgrsPoints.append(gridName+rightLine+bottomLine)
+
+        # mgrsPoints.append(gridName+topLeft)
+        # mgrsPoints.append(gridName+topRight)
+        # mgrsPoints.append(gridName+bottomLeft)
+        # mgrsPoints.append(gridName+bottomRight)
 
     if(templateIndex==1):
-        gridName=input("Enter grid zone designator and identifier: ").upper()
-        point=input("Enter point: ").upper()
-        mgrsPoints.append(gridName+point)
+
+        # edgeCase=False
+        # pixelPecentageZoomOut=0.15
+        # startX=int(startX-(endX-startX)*pixelPecentageZoomOut)
+        # startY=int(startY-(endY-startY)*pixelPecentageZoomOut)
+        # endX=int(endX+(endX-startX)*pixelPecentageZoomOut)
+        # endY=int(endY+(endX-startX)*pixelPecentageZoomOut)
+        # if(startX<0):
+        #     startX=0
+        # if(startY<0):
+        #     startY=0
+        # if(endX>image.shape[1]):
+        #     endX=image.shape[1]-1
+        # if(endY>image.shape[0]):
+        #     endY=image.shape[0]-1
+
+        cv2.imshow("Give Input on Terminal", image[startY:endY,startX:endX])
+        print("Enter grid zone designator and identifier: ")
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+        gridName=input("Press enter to continue").upper()
+
+        tempImage=image.copy()
+        #request top line coordinate
+        cv2.line(tempImage, (leftTop), (leftTop[0]+endX-startX,leftTop[1]), (0, 255, 0), thickness=3, lineType=8)
+        cv2.line(tempImage, (leftTop), (leftTop[0]-endX-startX,leftTop[1]), (0, 255, 0), thickness=3, lineType=8)
+
+
+
+        print("Enter horizontal-line coordinate: ")
+        if(edgeCase):
+            cv2.imshow("Give Input on Terminal", tempImage)
+        else:
+            tempImage=tempImage[startY:endY,startX:endX]
+            cv2.imshow("Give Input on Terminal", tempImage)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+        horizontalLine=input("Press enter to continue").upper()
+
+
+        tempImage=image.copy()
+        #request bottom line coordinate
+        cv2.line(tempImage, (leftTop), (leftTop[0],leftTop[1]+endY-startY), (0, 255, 0), thickness=3, lineType=8)
+        cv2.line(tempImage, (leftTop), (leftTop[0],leftTop[1]-endY-startY), (0, 255, 0), thickness=3, lineType=8)
+
+        print("Enter verticle-line coordinate: ")
+
+        if(edgeCase):
+            cv2.imshow("Give Input on Terminal", tempImage)
+        else:
+            tempImage=tempImage[startY:endY,startX:endX]
+            cv2.imshow("Give Input on Terminal", tempImage)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+        verticleLine=input("Press enter to continue").upper()
+
+
+
+        mgrsPoints.append(gridName+verticleLine+horizontalLine)
     return mgrsPoints
         
 
@@ -1035,8 +1244,7 @@ def SearchROI(image,template,templateIndex,visualize=False):
         print("No Match is selected, exiting.")
         exit()
     
-    mgrsPoints=[]
-    mgrsPoints=getMGRSPoints(templateIndex)
+
 
     # else:
     #     found=multiScaleMatchingTParallel(roi,template)
@@ -1045,7 +1253,7 @@ def SearchROI(image,template,templateIndex,visualize=False):
     matchScore, (detectedX,detectedY),tH,tW=found
     found=matchScore,(roiXmin+detectedX,roiYmin+detectedY),tH,tW
 
-    return found,mgrsPoints
+    return found
 
 def main():
     verbose=False
@@ -1141,13 +1349,13 @@ def main():
 
             if(markerInput==1):
                 # startTime=time.perf_counter()
-                found,mgrsPoints=SearchROI(image,template,0,visualize)
+                found=SearchROI(image,template,0,visualize)
                 # endTime=time.perf_counter()
                 # print("First PatternTime: ",endTime-startTime)
 
                 # startTime=time.perf_counter()
                 # mgrsAllPoints=mgrsPoints.copy()
-                mgrsAllPoints+=mgrsPoints
+
 
                     
                 
@@ -1271,7 +1479,9 @@ def main():
                 
                 
                 leftTop,rightTop,leftBot,RightBot=ReturnPoints(pointsOnBigImage)
-
+                mgrsPoints=[]
+                mgrsPoints=getMGRSPoints(0,image,(startX,startY,endX,endY),leftTop,rightTop,leftBot,RightBot)
+                mgrsAllPoints+=mgrsPoints
                 # allDetectedPoints+=[leftTop,rightTop,leftBot,RightBot]
                 allDetectedPoints=np.concatenate ((allDetectedPoints,[leftTop,rightTop,leftBot,RightBot]),0)
 
@@ -1285,12 +1495,10 @@ def main():
 
             # startTime=time.perf_counter()
             elif(markerInput==2):
-                found,mgrsPoints=SearchROI(image,template2,1,visualize)
+                found=SearchROI(image,template2,1,visualize)
                 # endTime=time.perf_counter()
                 # print("Second PatternTime: ",endTime-startTime)
-                mgrsAllPoints+=mgrsPoints
 
-                print(mgrsAllPoints)
 
 
 
@@ -1334,9 +1542,14 @@ def main():
                     cv2.circle(allDetectionsImage,(x+startX,y+startY),2,(0,255,0),-1)
                     pointsOnBigImage.append([x+startX,y+startY])
                 pointsOnBigImage=np.array(pointsOnBigImage,int)
+                
+                mgrsPoints=[]
+                mgrsPoints=getMGRSPoints(1,image,(startX,startY,endX,endY),pointsOnBigImage[0])
+                mgrsAllPoints+=mgrsPoints
 
                 allDetectedPoints=np.concatenate ((allDetectedPoints,pointsOnBigImage),0)
                 # allDetectedPoints+=pointsOnBigImage
+        print(mgrsAllPoints)
         
         if(not np.any(allDetectedPoints)):
             print("No Searches made, exiting.")
@@ -1382,9 +1595,9 @@ def main():
         detectedPoints=allDetectedPoints
         if(args["singleImage"] and (args["detection"] is not None)):
             detectionImage = cv2.imread(args["detection"])
-            pImg,mapImg,imgShape,detectionImage=MapPreparing(image,stringMGRSPoints,detectedPoints,detectionImage=detectionImage)
+            pImg,mapImg,imgShape,detectionImage,WMCoordinatesBigMap=MapPreparing(image,stringMGRSPoints,detectedPoints,detectionImage=detectionImage)
         else:
-            pImg,mapImg,imgShape,_=MapPreparing(image,stringMGRSPoints,detectedPoints)
+            pImg,mapImg,imgShape,_,WMCoordinatesBigMap=MapPreparing(image,stringMGRSPoints,detectedPoints)
             detectionImage=None
 
 
@@ -1407,10 +1620,10 @@ def main():
 
         if(detectionImage is not None):
             originalDetectionImage = cv2.imread(args["detection"])
-            detectionImage=image_overlay_second_method(detectionImage, overlay, (0, 0),originalImg=originalDetectionImage,is_transparent=False,verbose=verbose)
+            detectionImage,svgMask=image_overlay_second_method(detectionImage, overlay, (0, 0),originalImg=originalDetectionImage,is_transparent=False,verbose=verbose)
 
             
-        newImg=image_overlay_second_method(pImg, overlay, (0, 0),originalImg=image,is_transparent=False,verbose=verbose)
+        newImg, svgMask=image_overlay_second_method(pImg, overlay, (0, 0),originalImg=image,is_transparent=False,verbose=verbose)
 
         # imagesSavePath="./allImagesWithMap/"
         imagesSavePath=""
@@ -1419,6 +1632,8 @@ def main():
         imageSaveFolder="AllFilms/"
         imageSaveFolder="exampleToPlaceOnMap/"
         imageSaveFolder="PlacedOnMap/"
+
+
         if(not os.path.exists(imageSaveFolder)):
             os.mkdir(imageSaveFolder)
         # verbose=True
@@ -1434,6 +1649,18 @@ def main():
             print(f"{imagesSavePath}{imageSaveFolder}{imageName}")
             pass
 
+        createSvg(svgMask,f"{imagesSavePath}{imageSaveFolder}{imageName}.svg")
+
+        with open(f"{imagesSavePath}{imageSaveFolder}{imageName}-coordinates.txt","w") as coordFile:
+                
+                coordFile.write(f"Web mercator/spherical mercator edges:  \n" )
+
+                coordFile.write(f"west: {WMCoordinatesBigMap[0]} \n" )
+                coordFile.write(f"south: {WMCoordinatesBigMap[1]} \n" )
+                coordFile.write(f"east: {WMCoordinatesBigMap[2]} \n" )
+                coordFile.write(f"north: {WMCoordinatesBigMap[3]} \n" )
+        print("Web mercator/spherical mercator edges: ",WMCoordinatesBigMap)
+        
         print("Image: ",i)
         overallEndTime=time.perf_counter()
         print("Overall Time: ",overallEndTime-overallStartTime)
@@ -1447,7 +1674,7 @@ def main():
 #! parameters for demo
 # D:/Miniconda3.7/envs/symbols3/python.exe .\MarkerDetectionWithROI.py -t .\testTemplate6.jpg -t2 ./crossTemplate7.jpg -i .\exampleToPlaceOnMap
 
-
+#  D:/Miniconda3.7/envs/symbols3/python.exe .\MarkerDetectionWithROI.py -t .\testTemplate6.jpg -t2 ./crossTemplate7.jpg -i "D:\Workplace\Symbols\YOLO-Detection\yolov5\DEMOTEST"
     
 if __name__=="__main__":
     main()
