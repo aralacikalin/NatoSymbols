@@ -139,6 +139,46 @@ def VisualizeSymbol(symbolsImage,boundingBoxCoordinates,symbolRotation,symbolCla
 
     # cv2.imshow("rotatedClassnewBBox",rotatedClass)
 
+    
+    #! TEST coordinate for attack by fire symbol keypoint example, this should be switched to a list of coordinates for each symbol type later
+    homogeneous_coord=np.array([241,7,1])
+
+    # Calculate the rotation matrix
+    center = (copyClassImg.shape[1] // 2, copyClassImg.shape[0] // 2)
+    # Calculate the size of the canvas to fit the rotated image
+    rotation_matrix = cv2.getRotationMatrix2D(center, -symbolRotation, 1.0)
+
+    rotated_points = cv2.transform(np.array([[[0, 0], [copyClassImg.shape[1], 0], [copyClassImg.shape[1], copyClassImg.shape[0]], [0, copyClassImg.shape[0]]]], dtype=np.float32), rotation_matrix)
+    rotated_bbox = cv2.boundingRect(rotated_points)
+
+    # Calculate the size of the canvas to fit the rotated image
+    canvas_width = rotated_bbox[2]
+    canvas_height = rotated_bbox[3]
+    scale_x = w / rotatedClassOriginal.shape[1]
+    scale_y = h / rotatedClassOriginal.shape[0]
+
+    # Perform the rotation with adjusted translation to fit the entire rotated image
+    rotation_matrix[0, 2] += rotated_bbox[2] // 2 - copyClassImg.shape[1] // 2
+    rotation_matrix[1, 2] += rotated_bbox[3] // 2 - copyClassImg.shape[0] // 2
+    rotated_image = cv2.warpAffine(copyClassImg, rotation_matrix, (canvas_width, canvas_height))
+    rotatedCoords=rotation_matrix.dot(homogeneous_coord)
+    rotatedCoords=np.array([rotatedCoords[0]-leftBound,rotatedCoords[1]-topBound,1])
+
+    scaling_matrix = np.array([[scale_x, 0, 0], [0,scale_y , 0], [0, 0, 1]])
+
+
+
+
+
+    # Apply the affine matrix to the keypoint
+    transformed_coord = scaling_matrix.dot(rotatedCoords)
+
+    
+    # Convert back to (x, y) coordinates
+    print("TEST keypoint attack by fire pixel coordinate after rotation and resizing: ",(int(transformed_coord[0]+symbolXStart), int(transformed_coord[1]+symbolyStart)))
+
+
+
     resizedClass=cv2.resize(rotatedClass,(newX,newY),interpolation = cv2.INTER_AREA)
     resizedClassOriginal=cv2.resize(rotatedClassOriginal,(newX,newY),interpolation = cv2.INTER_AREA)
 
