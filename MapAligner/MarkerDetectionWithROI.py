@@ -257,10 +257,14 @@ def MapPreparing(image,stringMGRSPoints,detectedPoints,verbose=False,detectionIm
     mOrg= affine(src,oDST)
     
     pImg=cv2.warpAffine(image,m,imgShape,borderValue=(255,255,255))
-    #! Dummy pixel value later I need to put a function take pixel coordinates and turn in to web mercator coordinates.35vne
-    homogeneous_coord = np.array([3769,2084 , 1])
+
+    
+    #! Dummy pixel value later I need to put a function take pixel coordinates and turn in to web mercator coordinates 
+    #! .35vne, this should be switched to read pixel coordinates from a file or smth with information of symbol type 
+    #! and output web mercator coordinates with same formating
+    homogeneous_coord = np.array([2371, 1838 , 1])
+    # homogeneous_coord = np.array([3769,2084 , 1])
     web_mercator_coord = np.dot(mOrg, homogeneous_coord)
-    print(oMins,oMaxs)
     # print(WMCoordinatesBigMap[0]-web_mercator_coord[1],WMCoordinatesBigMap[3]+web_mercator_coord[0] )
     # print(web_mercator_coord[1]*(oMaxs[0]-oMins[0]) + oMins[0],web_mercator_coord[0]*(oMaxs[1]-oMins[1])+oMins[0] )
     print(web_mercator_coord[1],web_mercator_coord[0])
