@@ -22,6 +22,43 @@ from numba import jit
 import mgrs
 import time
 import matplotlib.image as mpimg
+from dataclasses import dataclass
+
+
+@dataclass
+class SymbolPixelInfo():
+    """Class for symbols with their keypoints stored in a list as pixel coordinates."""
+    symbolType: str
+    pixelKeypoints: list[list[int,int]]
+
+    def __init__(self,symbolType,pixelKeypoints):
+        self.symbolType=symbolType
+        self.pixelKeypoints=pixelKeypoints
+
+class SymbolWebMercatorInfo():
+    """Class for symbols with their keypoints stored in a list as web mercator coordinates."""
+    symbolType: str
+    webmercatorKeypoints: list[list[int,int]]
+
+    def __init__(self,symbolType,webmercatorKeypoints):
+        self.symbolType=symbolType
+        self.webmercatorKeypoints=webmercatorKeypoints
+
+
+def initializePixelKeypointList(keypointListFile) ->list[SymbolPixelInfo]:
+    """Parses keypoint pixel coordinates of symbols from a file and returns a list from them"""
+    #TODO: parse the input file to produce a list of SymbolPixelInfo object
+
+    symbolPixelInfoList=[]
+
+    return symbolPixelInfoList
+
+def createOutputWebmercatorKeypoints(outputFilePath,webmercatorKeypointList) ->None:
+    """Creates a output file of webmercator coordinates of the keypoints of symbols"""
+    #TODO: using webmercatorKeypointList output the list with desired format
+    pass
+
+
 
 
 class BoundingBoxWidget():
@@ -133,7 +170,7 @@ def extractWebMercatorCoordinates(stringMGRSPoints):
     return mercPoints
 
 
-def MapPreparing(image,stringMGRSPoints,detectedPoints,verbose=False,detectionImage=None):
+def MapPreparing(image,stringMGRSPoints,detectedPoints,pixelKeypointsList:list[SymbolPixelInfo],verbose=False,detectionImage=None):
     mercPointsOriginalScale=extractWebMercatorCoordinates(stringMGRSPoints)
     percentageMore=0.30
     height=image.shape[0]
@@ -262,12 +299,22 @@ def MapPreparing(image,stringMGRSPoints,detectedPoints,verbose=False,detectionIm
     #! Dummy pixel value later I need to put a function take pixel coordinates and turn in to web mercator coordinates 
     #! .35vne, this should be switched to read pixel coordinates from a file or smth with information of symbol type 
     #! and output web mercator coordinates with same formating
-    homogeneous_coord = np.array([2371, 1838 , 1])
-    # homogeneous_coord = np.array([3769,2084 , 1])
-    web_mercator_coord = np.dot(mOrg, homogeneous_coord)
-    # print(WMCoordinatesBigMap[0]-web_mercator_coord[1],WMCoordinatesBigMap[3]+web_mercator_coord[0] )
-    # print(web_mercator_coord[1]*(oMaxs[0]-oMins[0]) + oMins[0],web_mercator_coord[0]*(oMaxs[1]-oMins[1])+oMins[0] )
-    print(web_mercator_coord[1],web_mercator_coord[0])
+
+    webMercatorSymbolInfos:list[SymbolWebMercatorInfo]=[]
+
+    for symbolInfo in pixelKeypointsList:
+        keypointCoordinates=symbolInfo.pixelKeypoints
+        webmercatorCoordinates:list[int,int]=[]
+        for keypoint in keypointCoordinates:
+            homogeneous_coord = np.array([keypoint[0], keypoint[1] , 1])
+            # homogeneous_coord = np.array([2371, 1838 , 1])
+            web_mercator_coord = np.dot(mOrg, homogeneous_coord)
+            # print(WMCoordinatesBigMap[0]-web_mercator_coord[1],WMCoordinatesBigMap[3]+web_mercator_coord[0] )
+            # print(web_mercator_coord[1]*(oMaxs[0]-oMins[0]) + oMins[0],web_mercator_coord[0]*(oMaxs[1]-oMins[1])+oMins[0] )
+            print(web_mercator_coord[1],web_mercator_coord[0])
+            webmercatorCoordinates.append([web_mercator_coord[1],web_mercator_coord[0]])
+        webmercatorinfo=SymbolWebMercatorInfo(symbolInfo.symbolType,webmercatorKeypoints=webmercatorCoordinates)
+        webMercatorSymbolInfos.append(webmercatorinfo)
 
 
     pImg = cv2.flip(pImg, 0)
@@ -295,7 +342,7 @@ def MapPreparing(image,stringMGRSPoints,detectedPoints,verbose=False,detectionIm
         cv2.imshow("Perspective shifted", pImg)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
-    return pImg,mapImg,imgShape,detectionImage,WMCoordinatesBigMap
+    return pImg,mapImg,imgShape,detectionImage,WMCoordinatesBigMap,webMercatorSymbolInfos
 
 
 def image_overlay_second_method(img1, img2, location, min_thresh=0.2, originalImg=None , is_transparent=False,alpha=0.3,verbose=False):
@@ -1593,13 +1640,20 @@ def main():
         stringMGRSPoints=mgrsAllPoints
         # stringMGRSPoints=['35VMF3088', '35VMF3188', '35VMF3087', '35VMF3187', '35VMF3878']
         detectedPoints=allDetectedPoints
+
+        pixelKeypointsFilePath=""
+    
+        pixelKeypointsList: list[SymbolPixelInfo]= initializePixelKeypointList(pixelKeypointsFilePath)
+
         if(args["singleImage"] and (args["detection"] is not None)):
             detectionImage = cv2.imread(args["detection"])
-            pImg,mapImg,imgShape,detectionImage,WMCoordinatesBigMap=MapPreparing(image,stringMGRSPoints,detectedPoints,detectionImage=detectionImage)
+            pImg,mapImg,imgShape,detectionImage,WMCoordinatesBigMap,webMercatorSymbolInfos=MapPreparing(image,stringMGRSPoints,detectedPoints,pixelKeypointsList,detectionImage=detectionImage)
         else:
-            pImg,mapImg,imgShape,_,WMCoordinatesBigMap=MapPreparing(image,stringMGRSPoints,detectedPoints)
+            pImg,mapImg,imgShape,_,WMCoordinatesBigMap,webMercatorSymbolInfos=MapPreparing(image,stringMGRSPoints,detectedPoints,pixelKeypointsList)
             detectionImage=None
 
+        outputPathWebmercatorKeypoints=""
+        createOutputWebmercatorKeypoints(outputPathWebmercatorKeypoints,webMercatorSymbolInfos)
 
         verbose=False
         
@@ -1617,6 +1671,7 @@ def main():
 
         overlay =cv2.resize(overlay,imgShape,interpolation = cv2.INTER_AREA)
 
+        
 
         if(detectionImage is not None):
             originalDetectionImage = cv2.imread(args["detection"])
