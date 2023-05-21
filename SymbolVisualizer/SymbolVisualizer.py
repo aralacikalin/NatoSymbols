@@ -77,7 +77,7 @@ def getClasses(classPath):
     return classesDict,classesDictRed
 
 
-def VisualizeSymbol(symbolsImage,boundingBoxCoordinates,symbolRotation,symbolClass,classes,classesOriginal,symbolsImageOriginal):
+def VisualizeSymbol(symbolsImage,boundingBoxCoordinates,symbolRotation,symbolClass,classes,classesOriginal,symbolsImageOriginal, liKeyPoints):
     x,y,w,h=boundingBoxCoordinates
 
     symbolRotation=-symbolRotation
@@ -141,41 +141,43 @@ def VisualizeSymbol(symbolsImage,boundingBoxCoordinates,symbolRotation,symbolCla
 
     
     #! TEST coordinate for attack by fire symbol keypoint example, this should be switched to a list of coordinates for each symbol type later
-    homogeneous_coord=np.array([241,7,1])
+    if 0 <= symbolClass < len(liKeyPoints):
+        liPixelCoords = []
+        for i in range(len(liKeyPoints[symbolClass])):
+            liOneKeyPoint = liKeyPoints[symbolClass][i]
+            homogeneous_coord=np.array([liOneKeyPoint[0],liOneKeyPoint[1],1])
 
-    # Calculate the rotation matrix
-    center = (copyClassImg.shape[1] // 2, copyClassImg.shape[0] // 2)
-    # Calculate the size of the canvas to fit the rotated image
-    rotation_matrix = cv2.getRotationMatrix2D(center, -symbolRotation, 1.0)
+            # Calculate the rotation matrix
+            center = (copyClassImg.shape[1] // 2, copyClassImg.shape[0] // 2)
+            # Calculate the size of the canvas to fit the rotated image
+            rotation_matrix = cv2.getRotationMatrix2D(center, -symbolRotation, 1.0)
 
-    rotated_points = cv2.transform(np.array([[[0, 0], [copyClassImg.shape[1], 0], [copyClassImg.shape[1], copyClassImg.shape[0]], [0, copyClassImg.shape[0]]]], dtype=np.float32), rotation_matrix)
-    rotated_bbox = cv2.boundingRect(rotated_points)
+            rotated_points = cv2.transform(np.array([[[0, 0], [copyClassImg.shape[1], 0], [copyClassImg.shape[1], copyClassImg.shape[0]], [0, copyClassImg.shape[0]]]], dtype=np.float32), rotation_matrix)
+            rotated_bbox = cv2.boundingRect(rotated_points)
 
-    # Calculate the size of the canvas to fit the rotated image
-    canvas_width = rotated_bbox[2]
-    canvas_height = rotated_bbox[3]
-    scale_x = w / rotatedClassOriginal.shape[1]
-    scale_y = h / rotatedClassOriginal.shape[0]
+            # Calculate the size of the canvas to fit the rotated image
+            canvas_width = rotated_bbox[2]
+            canvas_height = rotated_bbox[3]
+            scale_x = w / rotatedClassOriginal.shape[1]
+            scale_y = h / rotatedClassOriginal.shape[0]
 
-    # Perform the rotation with adjusted translation to fit the entire rotated image
-    rotation_matrix[0, 2] += rotated_bbox[2] // 2 - copyClassImg.shape[1] // 2
-    rotation_matrix[1, 2] += rotated_bbox[3] // 2 - copyClassImg.shape[0] // 2
-    rotated_image = cv2.warpAffine(copyClassImg, rotation_matrix, (canvas_width, canvas_height))
-    rotatedCoords=rotation_matrix.dot(homogeneous_coord)
-    rotatedCoords=np.array([rotatedCoords[0]-leftBound,rotatedCoords[1]-topBound,1])
+            # Perform the rotation with adjusted translation to fit the entire rotated image
+            rotation_matrix[0, 2] += rotated_bbox[2] // 2 - copyClassImg.shape[1] // 2
+            rotation_matrix[1, 2] += rotated_bbox[3] // 2 - copyClassImg.shape[0] // 2
+            rotated_image = cv2.warpAffine(copyClassImg, rotation_matrix, (canvas_width, canvas_height))
+            rotatedCoords=rotation_matrix.dot(homogeneous_coord)
+            rotatedCoords=np.array([rotatedCoords[0]-leftBound,rotatedCoords[1]-topBound,1])
 
-    scaling_matrix = np.array([[scale_x, 0, 0], [0,scale_y , 0], [0, 0, 1]])
-
-
+            scaling_matrix = np.array([[scale_x, 0, 0], [0,scale_y, 0], [0, 0, 1]])
 
 
+            # Apply the affine matrix to the keypoint
+            transformed_coord = scaling_matrix.dot(rotatedCoords)
 
-    # Apply the affine matrix to the keypoint
-    transformed_coord = scaling_matrix.dot(rotatedCoords)
+            liPixelCoords.append([int(transformed_coord[0]+symbolXStart), int(transformed_coord[1]+symbolyStart)])
 
-    
-    # Convert back to (x, y) coordinates
-    print("TEST keypoint attack by fire pixel coordinate after rotation and resizing: ",(int(transformed_coord[0]+symbolXStart), int(transformed_coord[1]+symbolyStart)))
+        # Convert back to (x, y) coordinates
+        print("TEST keypoint pixel coordinates after rotation and resizing: ",liPixelCoords)
 
 
 
@@ -413,6 +415,13 @@ class symbolViz:
         if bUseTrajectorySymbols:
             self.trajectoryModelsAndData()
 
+        with open("./keypoints.txt", "r") as file:
+            liKeyPoints = []
+
+            for line in file:
+                numbers = line.split()
+                liKeyPoints.append([[int(numbers[i]), int(numbers[i + 1])] for i in range(0, len(numbers), 2)])
+
         imagePaths=glob.glob(imagesPath+"/"+"*.jpg")
         imagePaths+=glob.glob(imagesPath+"/"+"*.png")
 
@@ -443,20 +452,20 @@ class symbolViz:
             if bUseTrajectorySymbols:
                 for out in yoloOutput:
                     if out[0] in [0, 2, 9, 18]:
-                        self.VisualizeSymbolTrajectory(symbolsImage, out[1], out[2], out[0], symbolsImageOriginal, image, imageGray, bUseDecoder)
+                        self.VisualizeSymbolTrajectory(symbolsImage, out[1], out[2], out[0], symbolsImageOriginal, image, imageGray, bUseDecoder, liKeyPoints)
                     else:
-                        VisualizeSymbol(symbolsImage,out[1],out[2],out[0],classesImages,classesImagesRed,symbolsImageOriginal)
+                        VisualizeSymbol(symbolsImage,out[1],out[2],out[0],classesImages,classesImagesRed,symbolsImageOriginal, liKeyPoints)
 
             elif bUseBaseModel:
                 for out in yoloOutput:
                     if out[0] in [0, 2, 9, 18]:
-                        self.VisualizeSymbolBase(symbolsImage, out[1], out[2], out[0], symbolsImageOriginal, image, imageGray)
+                        self.VisualizeSymbolBase(symbolsImage, out[1], out[2], out[0], symbolsImageOriginal, image, imageGray, liKeyPoints)
                     else:
-                        VisualizeSymbol(symbolsImage,out[1],out[2],out[0],classesImages,classesImagesRed,symbolsImageOriginal)
+                        VisualizeSymbol(symbolsImage,out[1],out[2],out[0],classesImages,classesImagesRed,symbolsImageOriginal, liKeyPoints)
 
             else:
                 for out in yoloOutput:
-                    VisualizeSymbol(symbolsImage,out[1],out[2],out[0],classesImages,classesImagesRed,symbolsImageOriginal)
+                    VisualizeSymbol(symbolsImage,out[1],out[2],out[0],classesImages,classesImagesRed,symbolsImageOriginal, liKeyPoints)
 
         #?if classes are not red and want a red overlay
             if not useOriginalClassColors:
@@ -526,7 +535,7 @@ class symbolViz:
             # Test arguments: D:/Miniconda3.7/envs/symbols3/python.exe ./SymbolVisualizer.py --yoloText .\example\examplefalseremoved.txt  --image .\example\example.jpg --classTemplates .\VisualizerClassesOriginalRed\ --useOriginalClassColors 1
 
 
-    def VisualizeSymbolTrajectory(self, symbolsImage, boundingBoxCoordinates, symbolRotation, symbolClass, symbolsImageOriginal, image, imageGray, bDecoder):
+    def VisualizeSymbolTrajectory(self, symbolsImage, boundingBoxCoordinates, symbolRotation, symbolClass, symbolsImageOriginal, image, imageGray, bDecoder, liKeyPoints):
         x, y, w, h = boundingBoxCoordinates
 
         symbolRotation = -symbolRotation
@@ -650,7 +659,7 @@ class symbolViz:
         symbolsImage[symbolyStart:symbolyEnd, symbolXStart:symbolXEnd] = cv2.bitwise_and(symbolsImage[symbolyStart:symbolyEnd, symbolXStart:symbolXEnd], binaryClass)
         symbolsImageOriginal[symbolyStart:symbolyEnd, symbolXStart:symbolXEnd] = cv2.bitwise_and(symbolsImageOriginal[symbolyStart:symbolyEnd, symbolXStart:symbolXEnd], resizedClassOriginal)
 
-    def VisualizeSymbolBase(self, symbolsImage, boundingBoxCoordinates, symbolRotation, symbolClass, symbolsImageOriginal, image, imageGray):
+    def VisualizeSymbolBase(self, symbolsImage, boundingBoxCoordinates, symbolRotation, symbolClass, symbolsImageOriginal, image, imageGray, liKeyPoints):
         x, y, w, h = boundingBoxCoordinates
 
         symbolRotation = -symbolRotation
