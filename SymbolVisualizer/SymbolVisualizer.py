@@ -165,11 +165,12 @@ def VisualizeSymbol(symbolsImage,boundingBoxCoordinates,symbolRotation,symbolCla
             rotation_matrix[0, 2] += rotated_bbox[2] // 2 - copyClassImg.shape[1] // 2
             rotation_matrix[1, 2] += rotated_bbox[3] // 2 - copyClassImg.shape[0] // 2
             rotated_image = cv2.warpAffine(copyClassImg, rotation_matrix, (canvas_width, canvas_height))
+            # cv2.imshow("rotated_image", rotated_image)
+            # cv2.waitKey()
             rotatedCoords=rotation_matrix.dot(homogeneous_coord)
             rotatedCoords=np.array([rotatedCoords[0]-leftBound,rotatedCoords[1]-topBound,1])
 
             scaling_matrix = np.array([[scale_x, 0, 0], [0,scale_y, 0], [0, 0, 1]])
-
 
             # Apply the affine matrix to the keypoint
             transformed_coord = scaling_matrix.dot(rotatedCoords)
