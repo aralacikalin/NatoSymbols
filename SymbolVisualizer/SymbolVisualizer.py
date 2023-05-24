@@ -423,6 +423,15 @@ class symbolViz:
                 numbers = line.split()
                 liKeyPoints.append([[int(numbers[i]), int(numbers[i + 1])] for i in range(0, len(numbers), 2)])
 
+        dicBaseKeyPoints = {}
+        with open("./base_keypoints.txt", "r") as file:
+            for line in file:
+                lineSplit = line.replace("\n", "").split(" ")
+                dicBaseKeyPoints[lineSplit[0]] = lineSplit[1:]
+                # print([[int(dicBaseKeyPoints[lineSplit[0]][i]), int(dicBaseKeyPoints[lineSplit[0]][i + 1])] for i in range(0, len(dicBaseKeyPoints[lineSplit[0]]), 2)])
+
+        # print(dicBaseKeyPoints)
+
         imagePaths=glob.glob(imagesPath+"/"+"*.jpg")
         imagePaths+=glob.glob(imagesPath+"/"+"*.png")
 
