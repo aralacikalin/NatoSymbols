@@ -406,7 +406,7 @@ class symbolViz:
         opt=argParser()
         imagesPath=opt.images
         labelsPath=opt.labels
-        if(labelsPath==""):
+        if labelsPath == "":
             labelsPath=imagesPath
 
         bUseTrajectorySymbols = opt.useTrajectory
@@ -415,6 +415,26 @@ class symbolViz:
 
         if bUseTrajectorySymbols:
             self.trajectoryModelsAndData()
+            diAdvanceToContactKeyPoints = {}
+            diAttackKeyPoints = {}
+            diCounterattackKeyPoints = {}
+            diMainAttackKeyPoints = {}
+            with open("./encoder_advance_to_contact_keypoints.txt", "r") as file:
+                for line in file:
+                    lineSplit = line.replace("\n", "").split(" ")
+                    diAdvanceToContactKeyPoints[lineSplit[0]] = lineSplit[1:]
+            with open("./encoder_attack_keypoints.txt", "r") as file:
+                for line in file:
+                    lineSplit = line.replace("\n", "").split(" ")
+                    diAttackKeyPoints[lineSplit[0]] = lineSplit[1:]
+            with open("./encoder_counterattack_keypoints.txt", "r") as file:
+                for line in file:
+                    lineSplit = line.replace("\n", "").split(" ")
+                    diCounterattackKeyPoints[lineSplit[0]] = lineSplit[1:]
+            with open("./encoder_main_attack_keypoints.txt", "r") as file:
+                for line in file:
+                    lineSplit = line.replace("\n", "").split(" ")
+                    diMainAttackKeyPoints[lineSplit[0]] = lineSplit[1:]
 
         with open("./keypoints.txt", "r") as file:
             liKeyPoints = []
@@ -423,14 +443,13 @@ class symbolViz:
                 numbers = line.split()
                 liKeyPoints.append([[int(numbers[i]), int(numbers[i + 1])] for i in range(0, len(numbers), 2)])
 
-        dicBaseKeyPoints = {}
-        with open("./base_keypoints.txt", "r") as file:
-            for line in file:
-                lineSplit = line.replace("\n", "").split(" ")
-                dicBaseKeyPoints[lineSplit[0]] = lineSplit[1:]
-                # print([[int(dicBaseKeyPoints[lineSplit[0]][i]), int(dicBaseKeyPoints[lineSplit[0]][i + 1])] for i in range(0, len(dicBaseKeyPoints[lineSplit[0]]), 2)])
-
-        # print(dicBaseKeyPoints)
+        if bUseBaseModel:
+            dicBaseKeyPoints = {}
+            with open("./base_keypoints.txt", "r") as file:
+                for line in file:
+                    lineSplit = line.replace("\n", "").split(" ")
+                    dicBaseKeyPoints[lineSplit[0]] = lineSplit[1:]
+                    # print([[int(dicBaseKeyPoints[lineSplit[0]][i]), int(dicBaseKeyPoints[lineSplit[0]][i + 1])] for i in range(0, len(dicBaseKeyPoints[lineSplit[0]]), 2)])
 
         imagePaths=glob.glob(imagesPath+"/"+"*.jpg")
         imagePaths+=glob.glob(imagesPath+"/"+"*.png")
@@ -462,7 +481,7 @@ class symbolViz:
             if bUseTrajectorySymbols:
                 for out in yoloOutput:
                     if out[0] in [0, 2, 9, 18]:
-                        self.VisualizeSymbolTrajectory(symbolsImage, out[1], out[2], out[0], symbolsImageOriginal, image, imageGray, bUseDecoder, liKeyPoints)
+                        self.VisualizeSymbolTrajectory(symbolsImage, out[1], out[2], out[0], symbolsImageOriginal, image, imageGray, bUseDecoder, diAdvanceToContactKeyPoints, diAttackKeyPoints, diCounterattackKeyPoints, diMainAttackKeyPoints)
                     else:
                         VisualizeSymbol(symbolsImage,out[1],out[2],out[0],classesImages,classesImagesRed,symbolsImageOriginal, liKeyPoints)
 
@@ -545,7 +564,7 @@ class symbolViz:
             # Test arguments: D:/Miniconda3.7/envs/symbols3/python.exe ./SymbolVisualizer.py --yoloText .\example\examplefalseremoved.txt  --image .\example\example.jpg --classTemplates .\VisualizerClassesOriginalRed\ --useOriginalClassColors 1
 
 
-    def VisualizeSymbolTrajectory(self, symbolsImage, boundingBoxCoordinates, symbolRotation, symbolClass, symbolsImageOriginal, image, imageGray, bDecoder, liKeyPoints):
+    def VisualizeSymbolTrajectory(self, symbolsImage, boundingBoxCoordinates, symbolRotation, symbolClass, symbolsImageOriginal, image, imageGray, bDecoder, diAdvanceToContact, diAttack, diCounterattack, diMainAttack):
         x, y, w, h = boundingBoxCoordinates
 
         symbolRotation = -symbolRotation
@@ -565,6 +584,7 @@ class symbolViz:
         predicted = None
         load_features = None
         load_images = None
+        load_names = None
         features_reshape = None
 
         img_rotated = ndimage.rotate(mainImageSymbol, symbolRotation, mode='constant', cval=255)
@@ -581,6 +601,7 @@ class symbolViz:
 
             load_features = self.__advanceToContactData.item().get("features")
             load_images = self.__advanceToContactData.item().get("images")
+            load_names = self.__advanceToContactData.item().get("filenames")
             features_reshape = load_features.reshape((-1, np.prod((load_features.shape[1:]))))
         elif symbolClass == 2:
             self.__attackModel.load_weights('./trajectoryModels/attack_autoencoder_model12_b50_10.h5')
@@ -589,6 +610,7 @@ class symbolViz:
 
             load_features = self.__attackData.item().get("features")
             load_images = self.__attackData.item().get("images")
+            load_names = self.__attackData.item().get("filenames")
             features_reshape = load_features.reshape((-1, np.prod((load_features.shape[1:]))))
         elif symbolClass == 9:
             self.__counterattackModel.load_weights('./trajectoryModels/counterattack_autoencoder_model12_b50_10.h5')
@@ -597,6 +619,7 @@ class symbolViz:
 
             load_features = self.__counterattackData.item().get("features")
             load_images = self.__counterattackData.item().get("images")
+            load_names = self.__counterattackData.item().get("filenames")
             features_reshape = load_features.reshape((-1, np.prod((load_features.shape[1:]))))
         elif symbolClass == 18:
             self.__mainAttackModel.load_weights('./trajectoryModels/main_attack_autoencoder_model12_b50_10.h5')
@@ -605,6 +628,7 @@ class symbolViz:
 
             load_features = self.__mainAttackData.item().get("features")
             load_images = self.__mainAttackData.item().get("images")
+            load_names = self.__mainAttackData.item().get("filenames")
             features_reshape = load_features.reshape((-1, np.prod((load_features.shape[1:]))))
         else:
             print("error in trajectory class")
@@ -639,7 +663,8 @@ class symbolViz:
         predicted_reshape = predicted.reshape((-1, np.prod((predicted.shape[1:]))))
         _, indices = knn_cosine.kneighbors([predicted_reshape[0]])
         result = [load_images[idx] for idx in indices.flatten()]
-        mostSimilarImage = result[0].astype("uint8")
+        result_name = [load_names[idx] for idx in indices.flatten()]
+        mostSimilarImage = result[0][0].astype("uint8")
 
         thresholdVal, _ = cv2.threshold(mostSimilarImage, 0, 255, thresh_type + cv2.THRESH_OTSU)
         _, copyClassImg = cv2.threshold(mostSimilarImage, thresholdVal, 255, thresh_type)
@@ -659,6 +684,58 @@ class symbolViz:
         rightBound = nonZeroIndexesRotatedClassT[0][-1]
         rotatedClass = rotatedClass[topBound:bottomBound, leftBound:rightBound].copy()
         rotatedClassOriginal = rotatedClassOriginal[topBound:bottomBound, leftBound:rightBound].copy()
+
+        liKeyPoints = None
+        liPixelCoords = []
+        strSymbol = result_name[0]
+        if symbolClass == 0:
+            liKeyPoints = [[int(diAdvanceToContact[strSymbol][i]), int(diAdvanceToContact[strSymbol][i + 1])] for i in range(0, len(diAdvanceToContact[strSymbol]), 2)]
+        elif symbolClass == 2:
+            liKeyPoints = [[int(diAttack[strSymbol][i]), int(diAttack[strSymbol][i + 1])] for i in range(0, len(diAttack[strSymbol]), 2)]
+        elif symbolClass == 9:
+            liKeyPoints = [[int(diCounterattack[strSymbol][i]), int(diCounterattack[strSymbol][i + 1])] for i in range(0, len(diCounterattack[strSymbol]), 2)]
+        elif symbolClass == 18:
+            liKeyPoints = [[int(diMainAttack[strSymbol][i]), int(diMainAttack[strSymbol][i + 1])] for i in range(0, len(diMainAttack[strSymbol]), 2)]
+
+        for i in range(len(liKeyPoints)):
+            liOneKeyPoint = liKeyPoints[i]
+            homogeneous_coord = np.array([liOneKeyPoint[0], liOneKeyPoint[1], 1])
+
+            # Calculate the rotation matrix
+            center = (copyClassImg.shape[1] // 2, copyClassImg.shape[0] // 2)
+            # Calculate the size of the canvas to fit the rotated image
+            rotation_matrix = cv2.getRotationMatrix2D(center, -symbolRotation, 1.0)
+
+            rotated_points = cv2.transform(np.array([[[0, 0], [copyClassImg.shape[1], 0],
+                                                      [copyClassImg.shape[1], copyClassImg.shape[0]],
+                                                      [0, copyClassImg.shape[0]]]], dtype=np.float32),
+                                           rotation_matrix)
+            rotated_bbox = cv2.boundingRect(rotated_points)
+
+            # Calculate the size of the canvas to fit the rotated image
+            canvas_width = rotated_bbox[2]
+            canvas_height = rotated_bbox[3]
+            scale_x = w / rotatedClassOriginal.shape[1]
+            scale_y = h / rotatedClassOriginal.shape[0]
+
+            # Perform the rotation with adjusted translation to fit the entire rotated image
+            rotation_matrix[0, 2] += rotated_bbox[2] // 2 - copyClassImg.shape[1] // 2
+            rotation_matrix[1, 2] += rotated_bbox[3] // 2 - copyClassImg.shape[0] // 2
+            rotated_image = cv2.warpAffine(copyClassImg, rotation_matrix, (canvas_width, canvas_height))
+            # cv2.imshow("rotated_image", rotated_image)
+            # cv2.waitKey()
+            rotatedCoords = rotation_matrix.dot(homogeneous_coord)
+            rotatedCoords = np.array([rotatedCoords[0] - leftBound, rotatedCoords[1] - topBound, 1])
+
+            scaling_matrix = np.array([[scale_x, 0, 0], [0, scale_y, 0], [0, 0, 1]])
+
+            # Apply the affine matrix to the keypoint
+            transformed_coord = scaling_matrix.dot(rotatedCoords)
+
+            liPixelCoords.append([int(transformed_coord[0] + symbolXStart), int(transformed_coord[1] + symbolyStart)])
+
+        # Convert back to (x, y) coordinates
+        print("TEST TRAJECTORY keypoint pixel coordinates after rotation and resizing: ", liPixelCoords)
 
         resizedClass = cv2.resize(rotatedClass, (newX, newY), interpolation=cv2.INTER_AREA)
         resizedClassOriginal = cv2.resize(rotatedClassOriginal, (newX, newY), interpolation=cv2.INTER_AREA)
@@ -792,10 +869,10 @@ class symbolViz:
         self.__counterattackModel = model_version12()
         self.__mainAttackModel = model_version12()
 
-        self.__advanceToContactData = np.load("./trajectoryData/advance_to_contact_data_model12_b50_10.npy", allow_pickle=True)
-        self.__attackData = np.load("./trajectoryData/attack_data_model12_b50_10.npy", allow_pickle=True)
-        self.__counterattackData = np.load("./trajectoryData/counterattack_data_model12_b50_10.npy", allow_pickle=True)
-        self.__mainAttackData = np.load("./trajectoryData/main_attack_data_model12_b50_10.npy", allow_pickle=True)
+        self.__advanceToContactData = np.load("./trajectoryData/advance_to_contact_data_model12_b50_10_names.npy", allow_pickle=True)
+        self.__attackData = np.load("./trajectoryData/attack_data_model12_b50_10_names.npy", allow_pickle=True)
+        self.__counterattackData = np.load("./trajectoryData/counterattack_data_model12_b50_10_names.npy", allow_pickle=True)
+        self.__mainAttackData = np.load("./trajectoryData/main_attack_data_model12_b50_10_names.npy", allow_pickle=True)
 
 
 symbolViz().main()
