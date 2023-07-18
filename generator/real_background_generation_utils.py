@@ -33,7 +33,7 @@ def normalizePoints(boundingBoxesToRemove,dim,newDim):
 def generate_image_with_real_background(boundingBoxesToRemove,real_symbols_ratio,sample_real,sample_real_Clean,sample,canvas,
                    dim,
                    generator_dim=(4624,3468),
-                   real_symbols_in_real_backgrounds=False):
+                   real_symbols_in_real_backgrounds=False,real_backgrounds_anywhere_ratio=0.0):
     # canvas = np.full(dim, 255) #Size of final image
     canvas=canvas.copy()
 
@@ -189,7 +189,10 @@ def generate_image_with_real_background(boundingBoxesToRemove,real_symbols_ratio
         locations.append(((point1+point_1[0],point2+point_1[1]),(point1+img.shape[0]+point_2[0],point2+img.shape[1]+point_2[1])))
         #If there is overlap we don't want to overwrite black pixels with white background.
         canvas = place_symbol(canvas, img, point1, point2)
- 
+
+    if(random.uniform(0, 1)>real_backgrounds_anywhere_ratio):
+        #TODO implement generating symbols anywhere.
+        pass
     return canvas, locations, labels, rotations, locations_units, labels_units
 
 def ProcessBackgrounds(backgroundPath):

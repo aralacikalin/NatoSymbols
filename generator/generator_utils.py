@@ -34,7 +34,8 @@ def get_points(dim : Tuple[int,int],
                symbol : np.ndarray,
                locations : List[Tuple[Tuple[int,int],Tuple[int,int]]],
                locations_units : List[Tuple[Tuple[int,int],Tuple[int,int]]],
-               location_placement : List[Tuple[Tuple[int,int],Tuple[int,int]]]) -> Tuple[int,int]:
+               location_placement : List[Tuple[Tuple[int,int],Tuple[int,int]]],
+               max_overlap : Optional[int] = 50) -> Tuple[int,int]:
     """
     Finds the empty place randomly on canvas where to put the symbols.
 
@@ -56,9 +57,10 @@ def get_points(dim : Tuple[int,int],
         #Get the random location on canvas
         point1 = randint(0,dim[0]-symbol.shape[0]-10)
         point2 = randint(0,dim[1]-symbol.shape[1]-10)
-        overlap = (check_overlap(point1,point2,locations,symbol.shape) or
-                  check_overlap(point1,point2,locations_units,symbol.shape) or
-                  check_overlap(point1,point2,location_placement,symbol.shape))
+
+        overlap = (check_overlap(point1,point2,locations,symbol.shape,max_overlap) or
+                  check_overlap(point1,point2,locations_units,symbol.shape,max_overlap) or
+                  check_overlap(point1,point2,location_placement,symbol.shape,max_overlap))
 
         if not overlap:
             is_overlap = False

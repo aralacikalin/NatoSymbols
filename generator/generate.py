@@ -26,7 +26,8 @@ def generate_image(sample,
                    unit_sizes,
                    dim = (3468, 4624),
                    excess_str = 110,
-                   real_symbols_ratio = 0.0):
+                   real_symbols_ratio = 0.0,
+                   max_overlap=50):
     canvas = np.full(dim, 255) #Size of final image
     
     location_placement = []
@@ -144,7 +145,7 @@ def generate_image(sample,
         #Check if there is overlap with current symbols.
         #If there is overlap then generate new locations and check again.
         try:
-            point1, point2 = get_points(dim, img, locations, locations_units,location_placement)
+            point1, point2 = get_points(dim, img, locations, locations_units,location_placement,max_overlap)
         except:
             continue
 
@@ -284,7 +285,9 @@ def main(
     real_backgrounds_ratio=0.0,
     real_backgrounds_dir="data/real_backgrounds",
     real_symbols_ratio=0.0,
-    real_symbols_in_real_backgrounds=False
+    real_symbols_in_real_backgrounds=False,
+    max_overlap=50,
+    real_backgrounds_anywhere_ratio=0.0
 ):  
     
     save_dim = (save_dim_h,save_dim_w)
@@ -345,7 +348,7 @@ def main(
                                                                                         boundingBoxesToRemove,real_symbols_ratio,sample_real,sample_real_Clean,
                                                                                         sample, 
                                                                                         canvas, 
-                                                                                        background_dim,dim,real_symbols_in_real_backgrounds)
+                                                                                        background_dim,dim,real_symbols_in_real_backgrounds,real_backgrounds_anywhere_ratio=real_backgrounds_anywhere_ratio)
                                         
                 else:
                     if random.uniform(0,1) < vertical_ratio:
@@ -357,7 +360,7 @@ def main(
                                                                             resizable,
                                                                             resizable_horizontal,
                                                                             resizable_vertical,
-                                                                            unit_sizes, dim, excess_str, real_symbols_ratio)
+                                                                            unit_sizes, dim, excess_str, real_symbols_ratio,max_overlap)
                                     #Conversion to float is needed to use resize
 
                 #img[img<110] = 1
@@ -417,6 +420,8 @@ def parse_opt():
     parser.add_argument('--real_backgrounds_dir', type=str, default = "data/real_backgrounds", help='Directory in which the real data backgrounds are')
     parser.add_argument('--real_symbols_ratio', type=float, default = 0.0, help="Ratio of real symbols cut from film")
     parser.add_argument('--real_symbols_in_real_backgrounds', action='store_true', help="use real symbols in real backgrounds while generating real backgrounds data")
+    parser.add_argument('--max_overlap', type=int,default = 50,  help="adjusts the max overlap between task symbols and unit symbols.")
+    parser.add_argument('--real_backgrounds_anywhere_ratio', type=float, default = 0.0, help="generate symbols anywhere on the real backgrounds with the input ratio")
     opt = parser.parse_args()
     return opt
 
