@@ -27,7 +27,9 @@ def generate_image(sample,
                    dim = (3468, 4624),
                    excess_str = 110,
                    real_symbols_ratio = 0.0,
-                   max_overlap=50):
+                   max_overlap=50,
+                   min_symbol_count=3,
+                   max_symbol_count=6):
     canvas = np.full(dim, 255) #Size of final image
     
     location_placement = []
@@ -97,7 +99,7 @@ def generate_image(sample,
     if randint(0,1) == 0:
         canvas = place_exercise_text(canvas, scale, sample_extras)    
     
-    for task in range(randint(3,6)): # Nr of symbols on image
+    for task in range(randint(min_symbol_count,max_symbol_count)): # Nr of symbols on image
         label = sample_labels[randint(0,len(sample_labels)-1)]
         img_scale = random.uniform(0.7,1.0)
         if random.uniform(0, 1) > real_symbols_ratio:
@@ -287,7 +289,9 @@ def main(
     real_symbols_ratio=0.0,
     real_symbols_in_real_backgrounds=False,
     max_overlap=50,
-    real_backgrounds_anywhere_ratio=0.0
+    real_backgrounds_anywhere_ratio=0.0,
+    min_symbol_count=3,
+    max_symbol_count=6
 ):  
     
     save_dim = (save_dim_h,save_dim_w)
@@ -348,7 +352,12 @@ def main(
                                                                                         boundingBoxesToRemove,real_symbols_ratio,sample_real,sample_real_Clean,
                                                                                         sample, 
                                                                                         canvas, 
-                                                                                        background_dim,dim,real_symbols_in_real_backgrounds,real_backgrounds_anywhere_ratio=real_backgrounds_anywhere_ratio)
+                                                                                        background_dim,dim,
+                                                                                        real_symbols_in_real_backgrounds,
+                                                                                        real_backgrounds_anywhere_ratio=real_backgrounds_anywhere_ratio,
+                                                                                        max_overlap=max_overlap,
+                                                                                        min_symbol_count=min_symbol_count,
+                                                                                        max_symbol_count=max_symbol_count)
                                         
                 else:
                     if random.uniform(0,1) < vertical_ratio:
@@ -360,7 +369,12 @@ def main(
                                                                             resizable,
                                                                             resizable_horizontal,
                                                                             resizable_vertical,
-                                                                            unit_sizes, dim, excess_str, real_symbols_ratio,max_overlap)
+                                                                            unit_sizes, dim, 
+                                                                            excess_str, 
+                                                                            real_symbols_ratio,
+                                                                            max_overlap,
+                                                                            min_symbol_count, 
+                                                                            max_symbol_count)
                                     #Conversion to float is needed to use resize
 
                 #img[img<110] = 1
@@ -422,6 +436,9 @@ def parse_opt():
     parser.add_argument('--real_symbols_in_real_backgrounds', action='store_true', help="use real symbols in real backgrounds while generating real backgrounds data")
     parser.add_argument('--max_overlap', type=int,default = 50,  help="adjusts the max overlap between task symbols and unit symbols.")
     parser.add_argument('--real_backgrounds_anywhere_ratio', type=float, default = 0.0, help="generate symbols anywhere on the real backgrounds with the input ratio")
+    parser.add_argument('--min_symbol_count', type=int, default = 3, help='Minimum number of symbols to be generated. Defaulted to 3.')
+    parser.add_argument('--max_symbol_count', type=int, default = 6, help='Maximum number of symbols to be generated. Defaulted to 6.')
+
     opt = parser.parse_args()
     return opt
 

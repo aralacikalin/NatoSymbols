@@ -33,7 +33,11 @@ def normalizePoints(boundingBoxesToRemove,dim,newDim):
 def generate_image_with_real_background(boundingBoxesToRemove,real_symbols_ratio,sample_real,sample_real_Clean,sample,canvas,
                    dim,
                    generator_dim=(4624,3468),
-                   real_symbols_in_real_backgrounds=False,real_backgrounds_anywhere_ratio=0.0):
+                   real_symbols_in_real_backgrounds=False,
+                   real_backgrounds_anywhere_ratio=0.0,
+                   max_overlap=50,
+                   min_symbol_count=3,
+                   max_symbol_count=6):
     # canvas = np.full(dim, 255) #Size of final image
     canvas=canvas.copy()
 
