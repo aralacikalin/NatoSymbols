@@ -89,7 +89,7 @@ def resize_image(template : np.ndarray,
         elif unit_lab == "engineers" or unit_lab == "combat_service":
             unit_img = cv2.resize(unit_img, [int(template.shape[0]*0.6),int(template.shape[0]*0.3)])
             scale_factor = 0.35
-        elif unit_lab == "armour":
+        elif unit_lab == "armor":
             unit_img = cv2.resize(unit_img, [int(template.shape[0]*0.9),int(template.shape[0]*0.55)])
             scale_factor = 0.2
         elif unit_lab == "sniper":
@@ -160,9 +160,9 @@ def add_unit_size(sample : Dict[str,List[np.ndarray]],
 
 def generate_unit(sample : Dict[str,List[np.ndarray]],
                   lab : str,
-                  manuever_units : Optional[List[str]] = ['infantry', #Currently used as global variables
+                  maneuver_units : Optional[List[str]] = ['infantry', #Currently used as global variables
                      'anti_tank',
-                     'armour',],
+                     'armor',],
                   support_units : Optional[List[str]] = ['recce',
                                   'medic',
                                   'signal',
@@ -188,7 +188,7 @@ def generate_unit(sample : Dict[str,List[np.ndarray]],
     
     #Get the random label for image if one is not provided
     if lab == "maneuver":
-        unit_lab = manuever_units[randint(0,len(manuever_units)-1)]
+        unit_lab = maneuver_units[randint(0,len(maneuver_units)-1)]
         unit_img = get_random(unit_lab, sample)
     elif lab == "support":
         unit_lab = support_units[randint(0,len(support_units)-1)]
@@ -208,9 +208,9 @@ def generate_unit(sample : Dict[str,List[np.ndarray]],
     
     #Add additional information to symbol randomly.
     is_motorized = False
-    if unit_lab != "armour":
+    if unit_lab != "armor":
         if random.uniform(0, 1) > 0.8 and unit_lab != 'air_defence':
-            unit_img = resize_image(template, get_random('armour', sample), 'armour', resizable, resizable_horizontal, resizable_vertical)
+            unit_img = resize_image(template, get_random('armor', sample), 'armor', resizable, resizable_horizontal, resizable_vertical)
             template[unit_img == 0] = 0
         elif random.uniform(0, 1) > 0.9:
             unit_img = resize_image(template, get_random('line_vertical', sample), "motorized", resizable, resizable_horizontal, resizable_vertical)

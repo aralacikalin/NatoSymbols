@@ -18,7 +18,7 @@ def generate_image(sample,
                    sample_units,
                    sample_extras,
                    scale,
-                   manuever_units,
+                   maneuver_units,
                    support_units,
                    resizable,
                    resizable_horizontal,
@@ -127,7 +127,7 @@ def generate_image(sample,
             #Insert unit symbol to screen, cover and guard.
             if label in ['screen', 'cover', 'guard']:
                 if random.uniform(0,1) > 0.5:
-                    img, unit_lab, rotation, point_1, point_2 = add_unit_symbol_in_middle(img, scale, sample_units, manuever_units,
+                    img, unit_lab, rotation, point_1, point_2 = add_unit_symbol_in_middle(img, scale, sample_units, maneuver_units,
                                                     support_units, resizable, resizable_horizontal,
                                                     resizable_vertical, unit_sizes)
                 else:
@@ -171,7 +171,7 @@ def generate_image(sample,
             if random.uniform(0, 1) > 0.2:
                 #Generate unit symbol
                 unit_symbol, unit_lab = generate_unit(sample_units,"maneuver",
-                                                      manuever_units,support_units,
+                                                      maneuver_units,support_units,
                                                       resizable,resizable_horizontal,
                                                       resizable_vertical,unit_sizes)
                 unit_symbol = cv2.resize(unit_symbol, [int(unit_symbol.shape[1]*scale), int(unit_symbol.shape[0]*scale)])
@@ -197,7 +197,7 @@ def generate_image(sample,
 
                     if not is_overlap:
                         canvas = place_symbol(canvas, unit_symbol, point1_1, point2_1)
-                        locations_units.append(((point1_1,point2_1),(point1_1+unit_symbol.shape[0],point2_1+unit_symbol.shape[0])))
+                        locations_units.append(((point1_1,point2_1),(point1_1+unit_symbol.shape[0],point2_1+unit_symbol.shape[1])))
                         labels_units.append(unit_lab)
     
     # Add overlapping support_by_fire
@@ -259,9 +259,9 @@ def main(
     save_images_dir = '',
     save_labels_dir = '',
     save_rotations_dir = '',
-    manuever_units = ['infrantry',
+    maneuver_units = ['infantry',
                         'anti_tank',
-                        'armour',],
+                        'armor',],
     support_units = ['recce',
                     'medic',
                     'signal',
@@ -270,7 +270,7 @@ def main(
                     'artillery',
                     'mortar',
                     'air_defence'],
-    resizable = ['infrantry',
+    resizable = ['infantry',
                 'anti_tank',
                 'recce',
                 'medic',
@@ -352,7 +352,7 @@ def main(
                         save_dim = (save_dim_w,save_dim_h)
                         dim = (dim_w,dim_h)
                     img, locations, labels, rotations, loc_units, lab_units  = generate_image(sample, sample_real,sample_real_Clean, sample_units,
-                                                                            sample_extras, scale, manuever_units,
+                                                                            sample_extras, scale, maneuver_units,
                                                                             support_units,
                                                                             resizable,
                                                                             resizable_horizontal,
