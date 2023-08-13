@@ -17,6 +17,7 @@ def generate_image(sample,
                    sample_real_Clean,
                    sample_units,
                    sample_extras,
+                   sample_noise,
                    scale,
                    maneuver_units,
                    support_units,
@@ -200,22 +201,6 @@ def generate_image(sample,
                         locations_units.append(((point1_1,point2_1),(point1_1+unit_symbol.shape[0],point2_1+unit_symbol.shape[1])))
                         labels_units.append(unit_lab)
     
-    # Add overlapping support_by_fire
-    """
-    for i in range(randint(0,3)):
-        
-        overlapping_img, point1_1, point2_1, point1_2, point2_2, shape1, shape2, rot1, rot2 = get_overlapping_support_by_fire(scale, sample)
-
-        point1, point2 = get_points(dim, overlapping_img, locations, locations_units,location_placement)
-
-        canvas = place_symbol(canvas, overlapping_img, point1, point2)
-
-        locations_units.append(((point1_1,point2_1),(point1_1+unit_symbol.shape[0],point2_1+unit_symbol.shape[0])))
-        labels_units.append(unit_lab)
-
-        locations_units.append(((point1_2,point2_2),(point1_2+unit_symbol.shape[0],point2_2+unit_symbol.shape[0])))
-        labels_units.append(unit_lab)
-    """
     #Add mortar unit locations
     for i in range(randint(1,4)):
         mortar_img = get_mortar_area_img(i, scale, sample_extras)
@@ -229,8 +214,8 @@ def generate_image(sample,
 
     #Add random dots
     for i in range(randint(0,10)):
-        noise_img = get_noise_img(sample_extras)
-
+        noise_img = get_noise_img(sample_noise)
+        noise_img = rotate_img(noise_img, randint(0,359))
         point1 = randint(0,dim[0]-noise_img.shape[0])
         point2 = randint(0,dim[1]-noise_img.shape[1])
 
@@ -252,6 +237,7 @@ def main(
     real_symbols_clean_dir='data/real_clean_symbols',
     unit_symbols_dir = 'data/unit_symbols',
     extras_dir = 'data/extras',
+    noise_dir = 'data/noise',
     symbols_regex = '([a-zA-Z_ ]*)\d*.*',
     units_regex = '([1234a-zA-Z_ ]*)\d*.*',
     extras_regex = '([0-9a-zA-Z]*)\d*.*',
@@ -309,6 +295,9 @@ def main(
     # Read in the extra symbols (letters, grid placement, etc)
     sample_extras = read_into_dic(extras_dir, extras_regex)
 
+    # Read in the extra symbols (letters, grid placement, etc)
+    sample_noise = read_into_dic(noise_dir, symbols_regex)
+
     # If save directoris do not exists then create these
     if not os.path.exists(save_images_dir):
         os.makedirs(save_images_dir)
@@ -352,7 +341,7 @@ def main(
                         save_dim = (save_dim_w,save_dim_h)
                         dim = (dim_w,dim_h)
                     img, locations, labels, rotations, loc_units, lab_units  = generate_image(sample, sample_real,sample_real_Clean, sample_units,
-                                                                            sample_extras, scale, maneuver_units,
+                                                                            sample_extras, sample_noise, scale, maneuver_units,
                                                                             support_units,
                                                                             resizable,
                                                                             resizable_horizontal,
