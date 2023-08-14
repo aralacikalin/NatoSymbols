@@ -3,7 +3,6 @@ import cv2
 import re
 import os
 from math import sin, cos, tan, radians, ceil
-import random
 from random import randint
 from scipy import ndimage
 from generate_unit_symbol import *
@@ -685,8 +684,8 @@ def get_random(label : str,
         Sampled image which corresponds to label.
     """
     if label == None:
-        labels = sample.keys
-        label = sample.keys[randint(0,len(labels)-1)]
+        labels = list(sample.keys())
+        label = labels[randint(0,len(labels)-1)]
     
     imgs = sample[label]
     return np.copy(imgs[randint(0,len(imgs)-1)])
@@ -701,7 +700,7 @@ def get_noise_img(sample : Dict[str,List[np.ndarray]]) -> np.ndarray:
     Return:
         Sampled image of noise.
     """
-    noise_img = get_random('noise', sample)
+    noise_img = get_random(None, sample)
     noise_img = resize_by_scale(noise_img, 0.17)
     return noise_img
 
