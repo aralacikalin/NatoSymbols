@@ -691,7 +691,7 @@ def get_random(label : str,
     imgs = sample[label]
     return np.copy(imgs[randint(0,len(imgs)-1)])
 
-def get_noise_img(sample_noise : Dict[str,List[np.ndarray]]) -> np.ndarray:
+def get_noise_img(sample : Dict[str,List[np.ndarray]]) -> np.ndarray:
     """
     Like get_random but with predefined scale for the image. Used to keep the main code shorter.
 
