@@ -1,4 +1,3 @@
-import glob
 import numpy as np
 import cv2
 from random import randint
@@ -17,8 +16,9 @@ def generate_image(sample,
                    sample_real_Clean,
                    sample_units,
                    sample_extras,
+                   sample_noise,
                    scale,
-                   manuever_units,
+                   maneuver_units,
                    support_units,
                    resizable,
                    resizable_horizontal,
@@ -130,7 +130,7 @@ def generate_image(sample,
             #Insert unit symbol to screen, cover and guard.
             if label in ['screen', 'cover', 'guard']:
                 if random.uniform(0,1) > 0.5:
-                    img, unit_lab, rotation, point_1, point_2 = add_unit_symbol_in_middle(img, scale, sample_units, manuever_units,
+                    img, unit_lab, rotation, point_1, point_2 = add_unit_symbol_in_middle(img, scale, sample_units, maneuver_units,
                                                     support_units, resizable, resizable_horizontal,
                                                     resizable_vertical, unit_sizes)
                 else:
@@ -174,10 +174,10 @@ def generate_image(sample,
             if random.uniform(0, 1) > 0.2:
                 #Generate unit symbol
                 unit_symbol, unit_lab = generate_unit(sample_units,"maneuver",
-                                                      manuever_units,support_units,
+                                                      maneuver_units,support_units,
                                                       resizable,resizable_horizontal,
                                                       resizable_vertical,unit_sizes)
-                unit_symbol = cv2.resize(unit_symbol, [int(unit_symbol.shape[1]*scale), int(unit_symbol.shape[0]*scale)])
+                unit_symbol = resize_by_scale(unit_symbol, scale*0.7)
 
                 #Scale unit symbol
                 #scale = img.shape[0] / unit_symbol.shape[0]
@@ -200,25 +200,9 @@ def generate_image(sample,
 
                     if not is_overlap:
                         canvas = place_symbol(canvas, unit_symbol, point1_1, point2_1)
-                        locations_units.append(((point1_1,point2_1),(point1_1+unit_symbol.shape[0],point2_1+unit_symbol.shape[0])))
+                        locations_units.append(((point1_1,point2_1),(point1_1+unit_symbol.shape[0],point2_1+unit_symbol.shape[1])))
                         labels_units.append(unit_lab)
     
-    # Add overlapping support_by_fire
-    """
-    for i in range(randint(0,3)):
-        
-        overlapping_img, point1_1, point2_1, point1_2, point2_2, shape1, shape2, rot1, rot2 = get_overlapping_support_by_fire(scale, sample)
-
-        point1, point2 = get_points(dim, overlapping_img, locations, locations_units,location_placement)
-
-        canvas = place_symbol(canvas, overlapping_img, point1, point2)
-
-        locations_units.append(((point1_1,point2_1),(point1_1+unit_symbol.shape[0],point2_1+unit_symbol.shape[0])))
-        labels_units.append(unit_lab)
-
-        locations_units.append(((point1_2,point2_2),(point1_2+unit_symbol.shape[0],point2_2+unit_symbol.shape[0])))
-        labels_units.append(unit_lab)
-    """
     #Add mortar unit locations
     for i in range(randint(1,4)):
         mortar_img = get_mortar_area_img(i, scale, sample_extras)
@@ -231,9 +215,10 @@ def generate_image(sample,
         canvas = place_symbol(canvas, mortar_img, point1, point2)
 
     #Add random dots
-    for i in range(randint(0,10)):
-        noise_img = get_noise_img(sample_extras)
-
+    for i in range(randint(0,7)):
+        noise_img = get_noise_img(sample_noise)
+        noise_img = rotate_img(noise_img, randint(0,359))
+        noise_img = resize_by_scale(noise_img, scale*0.8)
         point1 = randint(0,dim[0]-noise_img.shape[0])
         point2 = randint(0,dim[1]-noise_img.shape[1])
 
@@ -269,6 +254,7 @@ def main(
     real_symbols_clean_dir='data/real_clean_symbols',
     unit_symbols_dir = 'data/unit_symbols',
     extras_dir = 'data/extras',
+    noise_dir = 'data/noise',
     symbols_regex = '([a-zA-Z_ ]*)\d*.*',
     units_regex = '([1234a-zA-Z_ ]*)\d*.*',
     extras_regex = '([0-9a-zA-Z]*)\d*.*',
@@ -276,9 +262,9 @@ def main(
     save_images_dir = '',
     save_labels_dir = '',
     save_rotations_dir = '',
-    manuever_units = ['infrantry',
+    maneuver_units = ['infantry',
                         'anti_tank',
-                        'armour',],
+                        'armor',],
     support_units = ['recce',
                     'medic',
                     'signal',
@@ -287,7 +273,7 @@ def main(
                     'artillery',
                     'mortar',
                     'air_defence'],
-    resizable = ['infrantry',
+    resizable = ['infantry',
                 'anti_tank',
                 'recce',
                 'medic',
@@ -313,22 +299,28 @@ def main(
     # Read in the tactical symbols
     sample = {}
     for dir in os.listdir(symbols_dir):
-        sample = read_into_dic(f'{symbols_dir}/{dir}', symbols_regex, sample)
+        if dir != '.DS_Store':
+            sample = read_into_dic(f'{symbols_dir}/{dir}', symbols_regex, sample)
 
     sample_real = {}
     sample_real_Clean={}
     if(real_symbols_ratio!=0):
         for dir in os.listdir(real_symbols_dir):
-            sample_real = real_symbol_utils.read_into_dic(f'{real_symbols_dir}/{dir}', symbols_regex, sample_real)
+            if dir != '.DS_Store':
+                sample_real = real_symbol_utils.read_into_dic(f'{real_symbols_dir}/{dir}', symbols_regex, sample_real)
 
         for dir in os.listdir(real_symbols_clean_dir):
-            sample_real_Clean = real_symbol_utils.read_into_dic(f'{real_symbols_clean_dir}/{dir}', symbols_regex, sample_real_Clean)
+            if dir != '.DS_Store':
+                sample_real_Clean = real_symbol_utils.read_into_dic(f'{real_symbols_clean_dir}/{dir}', symbols_regex, sample_real_Clean)
     
     # Read in the unit symbols
     sample_units = read_into_dic(unit_symbols_dir, units_regex)
 
     # Read in the extra symbols (letters, grid placement, etc)
     sample_extras = read_into_dic(extras_dir, extras_regex)
+
+    # Read in the extra symbols (letters, grid placement, etc)
+    sample_noise = read_into_dic(noise_dir, symbols_regex)
 
     # If save directoris do not exists then create these
     if not os.path.exists(save_images_dir):
@@ -378,7 +370,7 @@ def main(
                         save_dim = (save_dim_w,save_dim_h)
                         dim = (dim_w,dim_h)
                     img, locations, labels, rotations, loc_units, lab_units  = generate_image(sample, sample_real,sample_real_Clean, sample_units,
-                                                                            sample_extras, scale, manuever_units,
+                                                                            sample_extras, sample_noise, scale, maneuver_units,
                                                                             support_units,
                                                                             resizable,
                                                                             resizable_horizontal,

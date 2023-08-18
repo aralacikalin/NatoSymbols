@@ -1,4 +1,8 @@
 extras
+noise
+real_backgrounds_train
 symbols
+TrainSetSymbols-Clean-train
+TrainSetSymbols-Dirty-train
 unit_symbols
-real_backgrounds
+.DS_Strore
