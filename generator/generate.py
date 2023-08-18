@@ -326,65 +326,65 @@ def main(
     for i in tqdm(range(examples_nr)):
         not_successful = True
         while not_successful:
-            #try:
-            save_dim = (save_dim_h,save_dim_w)
-            dim = (dim_h,dim_w)
-            scale = random.uniform(0.5,1.2)
-            if(i in realBackgroundSample):
-                canvas,boundingBoxesToRemove,background_dim=random.choice(backgroundImageList)
-                canvas=canvas.copy()
-                img, locations, labels, rotations, loc_units, lab_units  = background_utils.generate_image_with_real_background(
-                                                                                    boundingBoxesToRemove,real_symbols_ratio,sample_real,sample_real_Clean,
-                                                                                    sample, 
-                                                                                    canvas, 
-                                                                                    background_dim,dim,real_symbols_in_real_backgrounds)
-                                    
-            else:
-                if random.uniform(0,1) < vertical_ratio:
-                    save_dim = (save_dim_w,save_dim_h)
-                    dim = (dim_w,dim_h)
-                img, locations, labels, rotations, loc_units, lab_units  = generate_image(sample, sample_real,sample_real_Clean, sample_units,
-                                                                        sample_extras, sample_noise, scale, maneuver_units,
-                                                                        support_units,
-                                                                        resizable,
-                                                                        resizable_horizontal,
-                                                                        resizable_vertical,
-                                                                        unit_sizes, dim, excess_str, real_symbols_ratio)
-                                #Conversion to float is needed to use resize
+            try:
+                save_dim = (save_dim_h,save_dim_w)
+                dim = (dim_h,dim_w)
+                scale = random.uniform(0.5,1.2)
+                if(i in realBackgroundSample):
+                    canvas,boundingBoxesToRemove,background_dim=random.choice(backgroundImageList)
+                    canvas=canvas.copy()
+                    img, locations, labels, rotations, loc_units, lab_units  = background_utils.generate_image_with_real_background(
+                                                                                        boundingBoxesToRemove,real_symbols_ratio,sample_real,sample_real_Clean,
+                                                                                        sample, 
+                                                                                        canvas, 
+                                                                                        background_dim,dim,real_symbols_in_real_backgrounds)
+                                        
+                else:
+                    if random.uniform(0,1) < vertical_ratio:
+                        save_dim = (save_dim_w,save_dim_h)
+                        dim = (dim_w,dim_h)
+                    img, locations, labels, rotations, loc_units, lab_units  = generate_image(sample, sample_real,sample_real_Clean, sample_units,
+                                                                            sample_extras, sample_noise, scale, maneuver_units,
+                                                                            support_units,
+                                                                            resizable,
+                                                                            resizable_horizontal,
+                                                                            resizable_vertical,
+                                                                            unit_sizes, dim, excess_str, real_symbols_ratio)
+                                    #Conversion to float is needed to use resize
 
-            #img[img<110] = 1
-            #img[img>=110] = 0
-            #Conversion to float is needed to use resize
-            img = cv2.resize(img.astype('float32'), (int(save_dim[1]),int(save_dim[0]))).astype('int16')
-            if save_as_square:
-                img2 = np.full((save_dim[1], save_dim[1]), 255)
-                offset = int((save_dim[1]-save_dim[0])/2)
-                img = place_symbol(img2,img,offset,0)
-                offset = int((dim[1]-dim[0])/2)
-                dim=(dim[1],dim[1])
-            if save_as_inverse:
-                img = inverse(img)
-            cv2.imwrite(f'{save_images_dir}/img{i}.jpg',img)
+                #img[img<110] = 1
+                #img[img>=110] = 0
+                #Conversion to float is needed to use resize
+                img = cv2.resize(img.astype('float32'), (int(save_dim[1]),int(save_dim[0]))).astype('int16')
+                if save_as_square:
+                    img2 = np.full((save_dim[1], save_dim[1]), 255)
+                    offset = int((save_dim[1]-save_dim[0])/2)
+                    img = place_symbol(img2,img,offset,0)
+                    offset = int((dim[1]-dim[0])/2)
+                    dim=(dim[1],dim[1])
+                if save_as_inverse:
+                    img = inverse(img)
+                cv2.imwrite(f'{save_images_dir}/img{i}.jpg',img)
 
-            labels2 = list(map(lambda label : get_labels(label, labels_to_nr), labels))
-            locations2 = get_locations(locations,dim[1],dim[0],offset)
+                labels2 = list(map(lambda label : get_labels(label, labels_to_nr), labels))
+                locations2 = get_locations(locations,dim[1],dim[0],offset)
 
-            with open(f'{save_labels_dir}/img{i}.txt', 'w') as f:
-                for k, lab in enumerate(labels2):
-                    if (k != len(labels2)-1):
-                        f.write(f'{lab} {locations2[k,0]} {locations2[k,1]} {locations2[k,2]} {locations2[k,3]}\n')
-                    else:
-                        f.write(f'{lab} {locations2[k,0]} {locations2[k,1]} {locations2[k,2]} {locations2[k,3]}')
-            
-            with open(f'{save_rotations_dir}/img{i}.txt','w') as f:
-                for k, rot in enumerate(rotations):
-                    if (k != len(rotations)-1):
-                        f.write(f'{rot}\n')
-                    else:
-                        f.write(f'{rot}')
-            not_successful = False
-            #except:
-            #    continue
+                with open(f'{save_labels_dir}/img{i}.txt', 'w') as f:
+                    for k, lab in enumerate(labels2):
+                        if (k != len(labels2)-1):
+                            f.write(f'{lab} {locations2[k,0]} {locations2[k,1]} {locations2[k,2]} {locations2[k,3]}\n')
+                        else:
+                            f.write(f'{lab} {locations2[k,0]} {locations2[k,1]} {locations2[k,2]} {locations2[k,3]}')
+                
+                with open(f'{save_rotations_dir}/img{i}.txt','w') as f:
+                    for k, rot in enumerate(rotations):
+                        if (k != len(rotations)-1):
+                            f.write(f'{rot}\n')
+                        else:
+                            f.write(f'{rot}')
+                not_successful = False
+            except:
+                continue
     
 
 def parse_opt():
