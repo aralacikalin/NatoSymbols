@@ -126,7 +126,6 @@ def generate_image_with_real_background(boundingBoxesToRemove,real_symbols_ratio
                 # Augment the image
                 img, rotation = augment(img, apply_rotation=True, apply_transformation=True, apply_boldness=True)
         else:
-            #TODO Need to predefine rotations for real films.
             rotation = 0
             img, rotation, point_1, point_2=real_symbol_utils.add_real_symbol(imgClean,imgDirty,1)
     
