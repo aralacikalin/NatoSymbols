@@ -174,7 +174,7 @@ def generate_image(sample,
                                                       maneuver_units,support_units,
                                                       resizable,resizable_horizontal,
                                                       resizable_vertical,unit_sizes)
-                unit_symbol = cv2.resize(unit_symbol, [int(unit_symbol.shape[1]*scale), int(unit_symbol.shape[0]*scale)])
+                unit_symbol = resize_by_scale(unit_symbol, scale*0.7)
 
                 #Scale unit symbol
                 #scale = img.shape[0] / unit_symbol.shape[0]
@@ -212,10 +212,10 @@ def generate_image(sample,
         canvas = place_symbol(canvas, mortar_img, point1, point2)
 
     #Add random dots
-    for i in range(randint(0,10)):
+    for i in range(randint(0,7)):
         noise_img = get_noise_img(sample_noise)
         noise_img = rotate_img(noise_img, randint(0,359))
-        noise_img = resize_by_scale(noise_img, scale*3)
+        noise_img = resize_by_scale(noise_img, scale*0.8)
         point1 = randint(0,dim[0]-noise_img.shape[0])
         point2 = randint(0,dim[1]-noise_img.shape[1])
 

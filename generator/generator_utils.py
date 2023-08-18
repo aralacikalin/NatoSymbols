@@ -701,7 +701,7 @@ def get_noise_img(sample : Dict[str,List[np.ndarray]]) -> np.ndarray:
         Sampled image of noise.
     """
     noise_img = get_random(None, sample)
-    noise_img = resize_by_scale(noise_img, 0.17)
+    #noise_img = resize_by_scale(noise_img, 0.8)
     return noise_img
 
 def get_exercise_text(scale : float,
