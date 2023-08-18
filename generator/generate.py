@@ -224,19 +224,6 @@ def generate_image(sample,
 
         canvas = place_symbol(canvas, noise_img, point1, point2)
 
-    #add random other symbols
-    if("other" in sample_extras):
-        if(random.random()>0.75):
-            for i in range(randint(1,3)):
-                other_image = get_random('other', sample_extras)
-                randomScale=random.uniform(0.6,1.3)
-                other_image = resize_by_scale(other_image, randomScale)
-                other_image, rotation = augment(other_image, apply_rotation=True, apply_transformation=True, apply_boldness=True)
-                point1 = randint(0,dim[0]-other_image.shape[0])
-                point2 = randint(0,dim[1]-other_image.shape[1])
-                canvas = place_symbol(canvas, other_image, point1, point2)
-
-
     
     return canvas, locations, labels, rotations, locations_units, labels_units
 
