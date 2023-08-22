@@ -29,7 +29,8 @@ def generate_image(sample,
                    real_symbols_ratio = 0.0,
                    max_overlap=50,
                    min_symbol_count=3,
-                   max_symbol_count=6):
+                   max_symbol_count=6,
+                   no_check_overlap=False):
     canvas = np.full(dim, 255) #Size of final image
     
     location_placement = []
@@ -147,7 +148,7 @@ def generate_image(sample,
         #Check if there is overlap with current symbols.
         #If there is overlap then generate new locations and check again.
         try:
-            point1, point2 = get_points(dim, img, locations, locations_units,location_placement,max_overlap)
+            point1, point2 = get_points(dim, img, locations, locations_units,location_placement,max_overlap,no_check_overlap)
         except:
             continue
 
@@ -208,7 +209,7 @@ def generate_image(sample,
         mortar_img = get_mortar_area_img(i, scale, sample_extras)
         
         try:
-            point1, point2 = get_points(dim, mortar_img, locations, locations_units,location_placement)
+            point1, point2 = get_points(dim, mortar_img, locations, locations_units,location_placement,no_check_overlap=no_check_overlap)
         except:
             continue
         
@@ -278,7 +279,8 @@ def main(
     max_overlap=50,
     real_backgrounds_anywhere_ratio=0.0,
     min_symbol_count=3,
-    max_symbol_count=6
+    max_symbol_count=6,
+    no_check_overlap=False
 ):  
     
     save_dim = (save_dim_h,save_dim_w)
@@ -367,7 +369,8 @@ def main(
                                                                             real_symbols_ratio,
                                                                             max_overlap,
                                                                             min_symbol_count, 
-                                                                            max_symbol_count)
+                                                                            max_symbol_count,
+                                                                            no_check_overlap)
                                     #Conversion to float is needed to use resize
 
                 #img[img<110] = 1
@@ -431,6 +434,7 @@ def parse_opt():
     parser.add_argument('--real_backgrounds_anywhere_ratio', type=float, default = 0.0, help="generate symbols anywhere on the real backgrounds with the input ratio")
     parser.add_argument('--min_symbol_count', type=int, default = 3, help='Minimum number of symbols to be generated. Defaulted to 3.')
     parser.add_argument('--max_symbol_count', type=int, default = 6, help='Maximum number of symbols to be generated. Defaulted to 6.')
+    parser.add_argument('--no_check_overlap', action='store_true', help='Doesnt check overlap between symbols if this argument is given.')
 
     opt = parser.parse_args()
     return opt
