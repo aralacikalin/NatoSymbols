@@ -1,17 +1,14 @@
 import argparse
 import glob
 import inspect
-import json
 import os
 import sys
-import time
 from typing import Optional
 
 from pathlib import Path
 import cv2
 
 
-import torchvision
 import torch
 import numpy as np
 from tqdm import tqdm
@@ -20,11 +17,11 @@ from utils.plots import Annotator, colors
 
 from utils.callbacks import Callbacks
 from utils.dataloaders import create_dataloader
-from utils.general import (LOGGER, TQDM_BAR_FORMAT, Profile, check_dataset, check_img_size, check_requirements,
-                           check_yaml, coco80_to_coco91_class, colorstr, increment_path, non_max_suppression,
+from utils.general import (LOGGER, TQDM_BAR_FORMAT, Profile, check_dataset,
+                            colorstr, increment_path, 
                            print_args, scale_boxes, xywh2xyxy, xyxy2xywh)
 from utils.metrics import ConfusionMatrix, ap_per_class, box_iou,ap_all,ap_per_class_with_confidence,p_r_at
-from utils.plots import output_to_target, plot_images, plot_val_study
+from utils.plots import output_to_target, plot_images
 
 
 FILE = Path(__file__).resolve()
@@ -174,116 +171,6 @@ def xywh2xyxy(x):
     return y
 
 
-def non_max_suppression(
-        prediction,
-        conf_thres=0.25,
-        iou_thres=0.45,
-        classes=None,
-        agnostic=False,
-        multi_label=False,
-        labels=(),
-        max_det=300,
-        nm=0,
-        nc=31,  # number of masks
-):
-    """Non-Maximum Suppression (NMS) on inference results to reject overlapping detections
-
-    Returns:
-         list of detections, on (n,6) tensor per image [xyxy, conf, cls]
-    """
-
-    # Checks
-    assert 0 <= conf_thres <= 1, f'Invalid Confidence threshold {conf_thres}, valid values are between 0.0 and 1.0'
-    assert 0 <= iou_thres <= 1, f'Invalid IoU {iou_thres}, valid values are between 0.0 and 1.0'
-    if isinstance(prediction, (list, tuple)):  # YOLOv5 model in validation model, output = (inference_out, loss_out)
-        prediction = prediction[0]  # select only inference output
-
-    device = prediction.device
-    mps = 'mps' in device.type  # Apple MPS
-    if mps:  # MPS not fully supported yet, convert tensors to CPU before NMS
-        prediction = prediction.cpu()
-    bs = 0  # batch size
-    nc = nc  # number of classes
-    xc = prediction[..., 4] > conf_thres  # candidates
-
-    # Settings
-    # min_wh = 2  # (pixels) minimum box width and height
-    max_wh = 7680  # (pixels) maximum box width and height
-    max_nms = 30000  # maximum number of boxes into torchvision.ops.nms()
-    redundant = True  # require redundant detections
-    multi_label &= nc > 1  # multiple labels per box (adds 0.5ms/img)
-    merge = False  # use merge-NMS
-
-    mi = 5 + nc  # mask start index
-    output = [torch.zeros((0, 6 + nm), device=prediction.device)] * bs
-    for xi, x in enumerate(prediction):  # image index, image inference
-        # Apply constraints
-        # x[((x[..., 2:4] < min_wh) | (x[..., 2:4] > max_wh)).any(1), 4] = 0  # width-height
-        x = x[xc[xi]]  # confidence
-
-        # Cat apriori labels if autolabelling
-        if labels and len(labels[xi]):
-            lb = labels[xi]
-            v = torch.zeros((len(lb), nc + nm + 5), device=x.device)
-            v[:, :4] = lb[:, 1:5]  # box
-            v[:, 4] = 1.0  # conf
-            v[range(len(lb)), lb[:, 0].long() + 5] = 1.0  # cls
-            x = torch.cat((x, v), 0)
-
-        # If none remain process next image
-        if not x.shape[0]:
-            continue
-
-        # Compute conf
-        x[:, 5:] *= x[:, 4:5]  # conf = obj_conf * cls_conf
-
-        # Box/Mask
-        box = xywh2xyxy(x[:, :4])  # center_x, center_y, width, height) to (x1, y1, x2, y2)
-        mask = x[:, mi:]  # zero columns if no masks
-
-        # Detections matrix nx6 (xyxy, conf, cls)
-        if multi_label:
-            i, j = (x[:, 5:mi] > conf_thres).nonzero(as_tuple=False).T
-            x = torch.cat((box[i], x[i, 5 + j, None], j[:, None].float(), mask[i]), 1)
-        else:  # best class only
-            conf, j = x[:, 5:mi].max(1, keepdim=True)
-            x = torch.cat((box, conf, j.float(), mask), 1)[conf.view(-1) > conf_thres]
-
-        # Filter by class
-        if classes is not None:
-            x = x[(x[:, 5:6] == torch.tensor(classes, device=x.device)).any(1)]
-
-        # Apply finite constraint
-        # if not torch.isfinite(x).all():
-        #     x = x[torch.isfinite(x).all(1)]
-
-        # Check shape
-        n = x.shape[0]  # number of boxes
-        if not n:  # no boxes
-            continue
-        x = x[x[:, 4].argsort(descending=True)[:max_nms]]  # sort by confidence and remove excess boxes
-
-        # Batched NMS
-        c = x[:, 5:6] * (0 if agnostic else max_wh)  # classes
-        boxes, scores = x[:, :4] + c, x[:, 4]  # boxes (offset by class), scores
-        i = torchvision.ops.nms(boxes, scores, iou_thres)  # NMS
-        i = i[:max_det]  # limit detections
-        if merge and (1 < n < 3E3):  # Merge NMS (boxes merged using weighted mean)
-            # update boxes as boxes(i,4) = weights(i,n) * boxes(n,4)
-            iou = box_iou(boxes[i], boxes) > iou_thres  # iou matrix
-            weights = iou * scores[None]  # box weights
-            x[i, :4] = torch.mm(weights, x[:, :4]).float() / weights.sum(1, keepdim=True)  # merged boxes
-            if redundant:
-                i = i[iou.sum(1) > 1]  # require redundancy
-
-        output[xi] = x[i]
-        if mps:
-            output[xi] = output[xi].to(device)
-            # break  # time limit exceeded
-
-    return output
-
-
 
 
 def run(
@@ -429,13 +316,6 @@ def run(
         for si, pred in enumerate(allThresholdPreds):
             labels = targets[targets[:, 0] == si, 1:]
 
-            #! for merging the screen cover guard
-            """for y,l in enumerate(labels):
-                if(l[0]==16 or l[0]==24): # label on the label
-                    labels[y][0]=10
-            for y,l in enumerate(pred):
-                if(l[5]==16 or l[5]==24): #label prediction on the tensor
-                    pred[y][5]=10"""
 
 
             nl, npr = labels.shape[0], pred.shape[0]  # number of labels, predictions
@@ -543,9 +423,9 @@ def run(
         LOGGER.info(f'Results at max f1_score')
 
 
-    LOGGER.info(('%22s' + '%11s' * 9) % ('Class', 'Images', 'Instances', 'P', 'R', 'mAP80', 'mAP80-95',"P@R({80})","R@P({80})","MaxF1"))
+    LOGGER.info(('%22s' + '%11s' * 9) % ('Class', 'Images', 'Instances', 'P', 'R', 'mAP50', 'mAP50-95',"P@R({80})","R@P({80})","MaxF1"))
     resultsToSave = f"P@R(80) Conf: {confPatR}, R@P(80) Conf: {confRatP}\n"
-    resultsToSave += ('%22s' + '%11s' * 9) % ('Class', 'Images', 'Instances', 'P', 'R', 'mAP80', 'mAP80-95',"P@R({80})","R@P({80})","MaxF1") +"\n"
+    resultsToSave += ('%22s' + '%11s' * 9) % ('Class', 'Images', 'Instances', 'P', 'R', 'mAP50', 'mAP50-95',"P@R({80})","R@P({80})","MaxF1") +"\n"
     # Print results
     pf = '%22s' + '%11i' * 2 + '%11.3g' * 4  # print format
     pf2 = '%22s' + '%11i' * 2 + '%11.3g' * 7  # print format
@@ -621,9 +501,8 @@ def run(
     
 
     # Plots
-    if plots:
-        confusion_matrix.plot(save_dir=save_dir, names=list(names.values()),normalize=False)
-        callbacks.run('on_val_end', nt, tp, fp, p, r, f1, ap, ap50, ap_class, confusion_matrix)
+    confusion_matrix.plot(save_dir=save_dir, names=list(names.values()),normalize=False)
+    callbacks.run('on_val_end', nt, tp, fp, p, r, f1, ap, ap50, ap_class, confusion_matrix)
 
    
 

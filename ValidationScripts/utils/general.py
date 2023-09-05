@@ -37,7 +37,6 @@ import torchvision
 import yaml
 
 from utils import TryExcept, emojis
-from utils.downloads import curl_download, gsutil_getsize
 from utils.metrics import box_iou, fitness
 
 FILE = Path(__file__).resolve()
@@ -503,15 +502,14 @@ def check_font(font=FONT, progress=False):
         torch.hub.download_url_to_file(url, str(file), progress=progress)
 
 
+
+
 def check_dataset(data, autodownload=True):
     # Download, check and/or unzip dataset if not found locally
 
     # Download (optional)
     extract_dir = ''
-    if isinstance(data, (str, Path)) and (is_zipfile(data) or is_tarfile(data)):
-        download(data, dir=f'{DATASETS_DIR}/{Path(data).stem}', unzip=True, delete=False, curl=False, threads=1)
-        data = next((DATASETS_DIR / Path(data).stem).rglob('*.yaml'))
-        extract_dir, autodownload = data.parent, False
+   
 
     # Read yaml (optional)
     if isinstance(data, (str, Path)):
@@ -569,33 +567,6 @@ def check_dataset(data, autodownload=True):
     return data  # dictionary
 
 
-def check_amp(model):
-    # Check PyTorch Automatic Mixed Precision (AMP) functionality. Return True on correct operation
-    from models.common import AutoShape, DetectMultiBackend
-
-    def amp_allclose(model, im):
-        # All close FP32 vs AMP results
-        m = AutoShape(model, verbose=False)  # model
-        a = m(im).xywhn[0]  # FP32 inference
-        m.amp = True
-        b = m(im).xywhn[0]  # AMP inference
-        return a.shape == b.shape and torch.allclose(a, b, atol=0.1)  # close to 10% absolute tolerance
-
-    prefix = colorstr('AMP: ')
-    device = next(model.parameters()).device  # get model device
-    if device.type in ('cpu', 'mps'):
-        return False  # AMP only used on CUDA devices
-    f = ROOT / 'data' / 'images' / 'bus.jpg'  # image to check
-    im = f if f.exists() else 'https://ultralytics.com/images/bus.jpg' if check_online() else np.ones((640, 640, 3))
-    try:
-        assert amp_allclose(deepcopy(model), im) or amp_allclose(DetectMultiBackend('yolov5n.pt', device), im)
-        LOGGER.info(f'{prefix}checks passed ✅')
-        return True
-    except Exception:
-        help_url = 'https://github.com/ultralytics/yolov5/issues/7908'
-        LOGGER.warning(f'{prefix}checks failed ❌, disabling Automatic Mixed Precision. See {help_url}')
-        return False
-
 
 def yaml_load(file='data.yaml'):
     # Single-line safe yaml loading
@@ -624,51 +595,6 @@ def url2file(url):
     url = str(Path(url)).replace(':/', '://')  # Pathlib turns :// -> :/
     return Path(urllib.parse.unquote(url)).name.split('?')[0]  # '%2F' to '/', split https://url.com/file.txt?auth
 
-
-def download(url, dir='.', unzip=True, delete=True, curl=False, threads=1, retry=3):
-    # Multithreaded file download and unzip function, used in data.yaml for autodownload
-    def download_one(url, dir):
-        # Download 1 file
-        success = True
-        if os.path.isfile(url):
-            f = Path(url)  # filename
-        else:  # does not exist
-            f = dir / Path(url).name
-            LOGGER.info(f'Downloading {url} to {f}...')
-            for i in range(retry + 1):
-                if curl:
-                    success = curl_download(url, f, silent=(threads > 1))
-                else:
-                    torch.hub.download_url_to_file(url, f, progress=threads == 1)  # torch download
-                    success = f.is_file()
-                if success:
-                    break
-                elif i < retry:
-                    LOGGER.warning(f'⚠️ Download failure, retrying {i + 1}/{retry} {url}...')
-                else:
-                    LOGGER.warning(f'❌ Failed to download {url}...')
-
-        if unzip and success and (f.suffix == '.gz' or is_zipfile(f) or is_tarfile(f)):
-            LOGGER.info(f'Unzipping {f}...')
-            if is_zipfile(f):
-                unzip_file(f, dir)  # unzip
-            elif is_tarfile(f):
-                subprocess.run(['tar', 'xf', f, '--directory', f.parent], check=True)  # unzip
-            elif f.suffix == '.gz':
-                subprocess.run(['tar', 'xfz', f, '--directory', f.parent], check=True)  # unzip
-            if delete:
-                f.unlink()  # remove zip
-
-    dir = Path(dir)
-    dir.mkdir(parents=True, exist_ok=True)  # make directory
-    if threads > 1:
-        pool = ThreadPool(threads)
-        pool.imap(lambda x: download_one(*x), zip(url, repeat(dir)))  # multithreaded
-        pool.close()
-        pool.join()
-    else:
-        for u in [url] if isinstance(url, (str, Path)) else url:
-            download_one(u, dir)
 
 
 def make_divisible(x, divisor):
@@ -1014,44 +940,6 @@ def strip_optimizer(f='best.pt', s=''):  # from utils.general import *; strip_op
     mb = os.path.getsize(s or f) / 1E6  # filesize
     LOGGER.info(f"Optimizer stripped from {f},{f' saved as {s},' if s else ''} {mb:.1f}MB")
 
-
-def print_mutation(keys, results, hyp, save_dir, bucket, prefix=colorstr('evolve: ')):
-    evolve_csv = save_dir / 'evolve.csv'
-    evolve_yaml = save_dir / 'hyp_evolve.yaml'
-    keys = tuple(keys) + tuple(hyp.keys())  # [results + hyps]
-    keys = tuple(x.strip() for x in keys)
-    vals = results + tuple(hyp.values())
-    n = len(keys)
-
-    # Download (optional)
-    if bucket:
-        url = f'gs://{bucket}/evolve.csv'
-        if gsutil_getsize(url) > (evolve_csv.stat().st_size if evolve_csv.exists() else 0):
-            subprocess.run(['gsutil', 'cp', f'{url}', f'{save_dir}'])  # download evolve.csv if larger than local
-
-    # Log to evolve.csv
-    s = '' if evolve_csv.exists() else (('%20s,' * n % keys).rstrip(',') + '\n')  # add header
-    with open(evolve_csv, 'a') as f:
-        f.write(s + ('%20.5g,' * n % vals).rstrip(',') + '\n')
-
-    # Save yaml
-    with open(evolve_yaml, 'w') as f:
-        data = pd.read_csv(evolve_csv, skipinitialspace=True)
-        data = data.rename(columns=lambda x: x.strip())  # strip keys
-        i = np.argmax(fitness(data.values[:, :4]))  #
-        generations = len(data)
-        f.write('# YOLOv5 Hyperparameter Evolution Results\n' + f'# Best generation: {i}\n' +
-                f'# Last generation: {generations - 1}\n' + '# ' + ', '.join(f'{x.strip():>20s}' for x in keys[:7]) +
-                '\n' + '# ' + ', '.join(f'{x:>20.5g}' for x in data.values[i, :7]) + '\n\n')
-        yaml.safe_dump(data.loc[i][7:].to_dict(), f, sort_keys=False)
-
-    # Print to screen
-    LOGGER.info(prefix + f'{generations} generations finished, current result:\n' + prefix +
-                ', '.join(f'{x.strip():>20s}' for x in keys) + '\n' + prefix + ', '.join(f'{x:20.5g}'
-                                                                                         for x in vals) + '\n\n')
-
-    if bucket:
-        subprocess.run(['gsutil', 'cp', f'{evolve_csv}', f'{evolve_yaml}', f'gs://{bucket}'])  # upload
 
 
 def apply_classifier(x, model, img, im0):
