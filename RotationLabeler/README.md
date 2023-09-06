@@ -1,4 +1,16 @@
-This is a tool for labeling the rotations of the symbols.
+This is a tool for labeling the rotations of the symbols. Use this after labeling the data.
+
+# Video Documentation for Labeling
+
+
+
+https://github.com/aralacikalin/NatoSymbols/assets/43911164/58e607b6-cece-4b00-bf8f-ad55b9462ad2
+
+
+https://github.com/aralacikalin/NatoSymbols/assets/43911164/72096588-0862-47d2-bf5e-e74d20df4f25
+
+
+
 ```
 python SymbolRotationLabeler.py
 ```
