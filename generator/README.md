@@ -2,10 +2,7 @@ This is a generator for generating training images with labels. The generator sa
 
 # Video Documentation
 
-
-<video controls>
-  <source src="../VideoDocs/DataGenerationVideoDoc.mp4" type="video/mp4">
-</video>
+https://github.com/aralacikalin/NatoSymbols/assets/43911164/f18cd48f-2add-4fff-9f89-594b11985b86
 
 
 The generator can be used with following command
