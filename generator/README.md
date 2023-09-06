@@ -1,5 +1,13 @@
 This is a generator for generating training images with labels. The generator samples uniformly over the unique labels.
 
+# Video Documentation
+
+
+<video controls>
+  <source src="../VideoDocs/DataGenerationVideoDoc.mp4" type="video/mp4">
+</video>
+
+
 The generator can be used with following command
 ```
 python generate.py
