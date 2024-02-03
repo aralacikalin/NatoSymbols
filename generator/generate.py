@@ -280,25 +280,29 @@ def main(
     real_backgrounds_anywhere_ratio=0.0,
     min_symbol_count=3,
     max_symbol_count=6,
-    no_check_overlap=False
+    no_check_overlap=False,
+    augment_real_backgrounds=False
 ):  
     
     save_dim = (save_dim_h,save_dim_w)
     dim = (dim_h,dim_w)
     # Read in the tactical symbols
     sample = {}
-    for dir in os.listdir(symbols_dir):
+    print("\nReading symbol folders.")
+    for dir in tqdm(os.listdir(symbols_dir)):
         if dir != '.DS_Store':
             sample = read_into_dic(f'{symbols_dir}/{dir}', symbols_regex, sample)
 
     sample_real = {}
     sample_real_Clean={}
     if(real_symbols_ratio!=0):
-        for dir in os.listdir(real_symbols_dir):
+        print("\nReading real symbols folders.")
+
+        for dir in tqdm(os.listdir(real_symbols_dir)):
             if dir != '.DS_Store':
                 sample_real = real_symbol_utils.read_into_dic(f'{real_symbols_dir}/{dir}', symbols_regex, sample_real)
 
-        for dir in os.listdir(real_symbols_clean_dir):
+        for dir in tqdm(os.listdir(real_symbols_clean_dir)):
             if dir != '.DS_Store':
                 sample_real_Clean = real_symbol_utils.read_into_dic(f'{real_symbols_clean_dir}/{dir}', symbols_regex, sample_real_Clean)
     
@@ -320,7 +324,7 @@ def main(
         os.makedirs(save_rotations_dir)
 
     # references for real background generation
-    backgroundImageList=background_utils.ProcessBackgrounds(real_backgrounds_dir)
+    backgroundImageList=background_utils.ProcessBackgrounds(real_backgrounds_dir, augment_real_backgrounds)
     
 
     realBackgroundSampleCount=round(examples_nr*real_backgrounds_ratio)
@@ -333,6 +337,7 @@ def main(
 
     labels_to_nr = read_in_labels('data/labels.txt')
 
+    print("\nGenerating images.")
     for i in tqdm(range(examples_nr)):
         not_successful = True
         while not_successful:
@@ -435,6 +440,7 @@ def parse_opt():
     parser.add_argument('--min_symbol_count', type=int, default = 3, help='Minimum number of symbols to be generated. Defaulted to 3.')
     parser.add_argument('--max_symbol_count', type=int, default = 6, help='Maximum number of symbols to be generated. Defaulted to 6.')
     parser.add_argument('--no_check_overlap', action='store_true', help='Doesnt check overlap between symbols if this argument is given.')
+    parser.add_argument('--augment_real_backgrounds', action='store_true', help='Augments the real backgrounds on generation with flipping.')
 
     opt = parser.parse_args()
     return opt
