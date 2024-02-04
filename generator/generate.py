@@ -324,7 +324,7 @@ def main(
         os.makedirs(save_rotations_dir)
 
     # references for real background generation
-    backgroundImageList=background_utils.ProcessBackgrounds(real_backgrounds_dir, augment_real_backgrounds)
+    backgroundImageList=background_utils.ProcessBackgrounds(real_backgrounds_dir, augment_real_backgrounds, dim)
     
 
     realBackgroundSampleCount=round(examples_nr*real_backgrounds_ratio)

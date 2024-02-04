@@ -44,40 +44,7 @@ def generate_image_with_real_background(boundingBoxesToRemove,real_symbols_ratio
     canvas=canvas.copy()
 
     # check if the background is portrait 
-    if(dim[0]/dim[1]>1.0):
-        #rotate background
-        canvas=cv2.rotate(canvas, cv2.ROTATE_90_CLOCKWISE)
-        boundingBoxesToRemove=rotateBoundingBoxes(boundingBoxesToRemove,dim)
-        
-    # check if background resolution is bigger than generator res 
-    if(dim[0]/dim[1]>generator_dim[1]/generator_dim[0]):
-        widthRatio=generator_dim[1]/dim[0]
-        heightRatio=generator_dim[0]/dim[1]
-        if(widthRatio<heightRatio):
-            canvas = cv2.resize(canvas, (int(round(canvas.shape[1]*widthRatio)),int(round(canvas.shape[0]*widthRatio))))
-        else:
-            canvas = cv2.resize(canvas, (int(round(canvas.shape[1]*heightRatio)),int(round(canvas.shape[0]*heightRatio))))
-        newDim=canvas.shape
-        dim=newDim
-        boundingBoxesToRemove=normalizePoints(boundingBoxesToRemove,dim,newDim)
-    
-    
-        
-    # add padding to the smaller side of the image
-    if(generator_dim[1]>dim[1] or generator_dim[0]>dim[0]):
-        paddingSizeWidth=generator_dim[1]-dim[1]
-        paddingSizeHeight=generator_dim[0]-dim[0]
-        # divide padding to both sides
-        paddingToSideWitdh=paddingSizeWidth//2
-        paddingToSideHeight=paddingSizeHeight//2
-        canvas=cv2.copyMakeBorder(canvas, paddingToSideHeight, paddingSizeHeight-paddingToSideHeight, paddingToSideWitdh, paddingSizeWidth-paddingToSideWitdh, cv2.BORDER_CONSTANT,value=(255,255,255))
-
-        newBoundingBoxPoints=[]
-        for point1,point2 in boundingBoxesToRemove:
-            x,y=point1
-            x1,y1=point2
-            newBoundingBoxPoints.append([[x+paddingToSideWitdh,y+paddingToSideHeight],[x1+paddingToSideWitdh,y1+paddingToSideHeight]])
-        boundingBoxesToRemove=newBoundingBoxPoints
+    # boundingBoxesToRemove, canvas = RotateBackgroundAndPadIfNecessary(boundingBoxesToRemove, canvas, dim, generator_dim)
 
     
     location_placement = []
@@ -200,7 +167,44 @@ def generate_image_with_real_background(boundingBoxesToRemove,real_symbols_ratio
         pass
     return canvas, locations, labels, rotations, locations_units, labels_units
 
-def ProcessBackgrounds(backgroundPath, augment_real_backgrounds):
+def RotateBackgroundAndPadIfNecessary(boundingBoxesToRemove, canvas, dim, generator_dim):
+    if(dim[0]/dim[1]>1.0):
+        #rotate background
+        canvas=cv2.rotate(canvas, cv2.ROTATE_90_CLOCKWISE)
+        boundingBoxesToRemove=rotateBoundingBoxes(boundingBoxesToRemove,dim)
+        
+    # check if background resolution is bigger than generator res 
+    if(dim[0]/dim[1]>generator_dim[1]/generator_dim[0]):
+        widthRatio=generator_dim[1]/dim[0]
+        heightRatio=generator_dim[0]/dim[1]
+        if(widthRatio<heightRatio):
+            canvas = cv2.resize(canvas, (int(round(canvas.shape[1]*widthRatio)),int(round(canvas.shape[0]*widthRatio))))
+        else:
+            canvas = cv2.resize(canvas, (int(round(canvas.shape[1]*heightRatio)),int(round(canvas.shape[0]*heightRatio))))
+        newDim=canvas.shape
+        dim=newDim
+        boundingBoxesToRemove=normalizePoints(boundingBoxesToRemove,dim,newDim)
+    
+    
+        
+    # add padding to the smaller side of the image
+    if(generator_dim[1]>dim[1] or generator_dim[0]>dim[0]):
+        paddingSizeWidth=generator_dim[1]-dim[1]
+        paddingSizeHeight=generator_dim[0]-dim[0]
+        # divide padding to both sides
+        paddingToSideWitdh=paddingSizeWidth//2
+        paddingToSideHeight=paddingSizeHeight//2
+        canvas=cv2.copyMakeBorder(canvas, paddingToSideHeight, paddingSizeHeight-paddingToSideHeight, paddingToSideWitdh, paddingSizeWidth-paddingToSideWitdh, cv2.BORDER_CONSTANT,value=(255,255,255))
+
+        newBoundingBoxPoints=[]
+        for point1,point2 in boundingBoxesToRemove:
+            x,y=point1
+            x1,y1=point2
+            newBoundingBoxPoints.append([[x+paddingToSideWitdh,y+paddingToSideHeight],[x1+paddingToSideWitdh,y1+paddingToSideHeight]])
+        boundingBoxesToRemove=newBoundingBoxPoints
+    return boundingBoxesToRemove,canvas
+
+def ProcessBackgrounds(backgroundPath, augment_real_backgrounds, generator_dim):
     imagesPath=glob.glob(backgroundPath+"/*.jpg")
     imagesPath+=glob.glob(backgroundPath+"/*.png")
     backgroundImageList=[]
@@ -228,7 +232,12 @@ def ProcessBackgrounds(backgroundPath, augment_real_backgrounds):
             removedLabelsImage=cv2.rectangle(removedLabelsImage, startPoint, endPoint, (255, 255, 255), -1)
 
         dim=(imageshape[0],imageshape[1])
-        backgroundImageList.append([removedLabelsImage,boundingBoxesToRemove,dim])
+
+        fixedBoundingBoxesToRemove, fixedRemovedLabelsImage = RotateBackgroundAndPadIfNecessary(boundingBoxesToRemove,removedLabelsImage,dim,generator_dim)
+
+        fixedDim = (removedLabelsImage.shape[0],removedLabelsImage.shape[1])
+
+        backgroundImageList.append([fixedRemovedLabelsImage,fixedBoundingBoxesToRemove,fixedDim])
 
         if (augment_real_backgrounds):
             flippedHorizontal=cv2.flip(removedLabelsImage,1)
@@ -247,9 +256,17 @@ def ProcessBackgrounds(backgroundPath, augment_real_backgrounds):
             dimVerticle=(flippedVertical.shape[0],flippedVertical.shape[1])
             dimCombined=(flippedCombined.shape[0],flippedCombined.shape[1])
 
-            backgroundImageList.append([flippedHorizontal,horizontalbboxPoints,dimHorizontal])
-            backgroundImageList.append([flippedVertical,verticlebboxPoints,dimVerticle])
-            backgroundImageList.append([flippedCombined,combinedbboxPoints,dimCombined])
+            fixedHorizontalbboxPoints, fixedFlippedHorizontal = RotateBackgroundAndPadIfNecessary(horizontalbboxPoints,flippedHorizontal,dimHorizontal,generator_dim)
+            fixedVerticlebboxPoints, fixedFlippedVertical = RotateBackgroundAndPadIfNecessary(verticlebboxPoints,flippedVertical,dimVerticle,generator_dim)
+            fixedCombinedbboxPoints, fixedFlippedCombined = RotateBackgroundAndPadIfNecessary(combinedbboxPoints,flippedCombined,dimCombined,generator_dim)
+
+            dimHorizontal=(fixedFlippedHorizontal.shape[0],fixedFlippedHorizontal.shape[1])
+            dimVerticle=(fixedFlippedVertical.shape[0],fixedFlippedVertical.shape[1])
+            dimCombined=(fixedFlippedCombined.shape[0],fixedFlippedCombined.shape[1])
+
+            backgroundImageList.append([fixedFlippedHorizontal,fixedHorizontalbboxPoints,dimHorizontal])
+            backgroundImageList.append([fixedFlippedVertical,fixedVerticlebboxPoints,dimVerticle])
+            backgroundImageList.append([fixedFlippedCombined,fixedCombinedbboxPoints,dimCombined])
 
 
 

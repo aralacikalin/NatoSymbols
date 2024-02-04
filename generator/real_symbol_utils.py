@@ -11,6 +11,8 @@ def read_into_dic(directory, re_in, output_dir = None):
         output_dir = {}
     for filename in os.listdir(directory+"/"):
         img = cv2.imread(directory+"/" + filename,0)
+        img=cv2.copyMakeBorder(img, 300, 300, 300, 300, cv2.BORDER_CONSTANT,value=255)
+
         img[img <= 100] = 0
         img[img > 100] = 255
         key = re.findall(re_in, filename)[0]
@@ -45,8 +47,6 @@ def add_real_symbol(imgClean,imageDirty, scale ):
     # imageDirty = np.pad(imageDirty, ((600,600),(600,600)), "constant", constant_values=255)
     # imageDirty = np.pad(imageDirty, ((300,300),(300,300)), "constant", constant_values=255)
     # imgClean = np.pad(imgClean, ((300,300),(300,300)), "constant", constant_values=255)
-    imageDirty=cv2.copyMakeBorder(imageDirty, 300, 300, 300, 300, cv2.BORDER_CONSTANT,value=255)
-    imgClean=cv2.copyMakeBorder(imgClean, 300, 300, 300, 300, cv2.BORDER_CONSTANT,value=255)
 
     
     rotation = randint(0,359)
