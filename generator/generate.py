@@ -30,7 +30,8 @@ def generate_image(sample,
                    max_overlap=50,
                    min_symbol_count=3,
                    max_symbol_count=6,
-                   no_check_overlap=False):
+                   no_check_overlap=False,
+                   equal_real_symbol_distribution=False):
     canvas = np.full(dim, 255) #Size of final image
     
     location_placement = []
@@ -103,28 +104,56 @@ def generate_image(sample,
     for task in range(randint(min_symbol_count,max_symbol_count)): # Nr of symbols on image
         label = sample_labels[randint(0,len(sample_labels)-1)]
         img_scale = random.uniform(0.7,1.0)
-        if random.uniform(0, 1) > real_symbols_ratio:
-            img = get_random(label, sample)
-            from_real_film = False
-            img = resize_by_scale(img, img_scale*0.8)
-        else:
-            if(label in sample_real_Clean):
-                #There might not be sample from real film
-                imgClean,imgDirty = real_symbol_utils.get_random_pair(label, sample_real_Clean,sample_real)
-                from_real_film = True
-                imgClean = resize_by_scale(imgClean, 1.8)
-                imgDirty = resize_by_scale(imgDirty, 1.8)
 
+        # This block uses the input distribution for real symbol usage
+        if(not equal_real_symbol_distribution):
 
-                # cv2.imshow("imgClean",imgClean)
-                # cv2.imshow("imgDirty",imgDirty)
-                # cv2.waitKey(0)
-
-            else:
+            if random.uniform(0, 1) > real_symbols_ratio:
                 img = get_random(label, sample)
                 from_real_film = False
                 img = resize_by_scale(img, img_scale*0.8)
-        
+            else:
+                if(label in sample_real_Clean):
+                    #There might not be sample from real film
+                    imgClean,imgDirty = real_symbol_utils.get_random_pair(label, sample_real_Clean,sample_real)
+                    from_real_film = True
+                    imgClean = resize_by_scale(imgClean, 1.8)
+                    imgDirty = resize_by_scale(imgDirty, 1.8)
+
+
+                    # cv2.imshow("imgClean",imgClean)
+                    # cv2.imshow("imgDirty",imgDirty)
+                    # cv2.waitKey(0)
+
+                else:
+                    img = get_random(label, sample)
+                    from_real_film = False
+                    img = resize_by_scale(img, img_scale*0.8)
+
+        # This block uses the normal distribution for real symbol usage
+        else:
+            templateImageCount = len(sample[label])
+            realSymbolCount = 0
+            if(label in sample_real):
+                realSymbolCount = len(sample_real[label])
+            totalImagesCount = templateImageCount + realSymbolCount
+            randomImageNumber = randint(1,totalImagesCount)
+            if(randomImageNumber<=templateImageCount):
+                imgs = sample[label]
+                img = np.copy(imgs[randomImageNumber-1])
+                from_real_film = False
+                img = resize_by_scale(img, img_scale*0.8)
+            else:
+                randomRealSymbolIndex = (randomImageNumber - realSymbolCount)-1
+
+                imgsClean = sample_real_Clean[label]
+                imgsDirty = sample_real[label]
+                imgClean,imgDirty = np.copy(imgsClean[randomRealSymbolIndex]),np.copy(imgsDirty[randomRealSymbolIndex])
+                from_real_film = True
+                imgClean = resize_by_scale(imgClean, 1.8)
+                imgDirty = resize_by_scale(imgDirty, 1.8)
+                
+
         point_1 = (0,0)
         point_2 = (0,0)
         if not from_real_film:
@@ -281,7 +310,8 @@ def main(
     min_symbol_count=3,
     max_symbol_count=6,
     no_check_overlap=False,
-    augment_real_backgrounds=False
+    augment_real_backgrounds=False,
+    equal_real_symbol_distribution=False
 ):  
     
     save_dim = (save_dim_h,save_dim_w)
@@ -295,7 +325,7 @@ def main(
 
     sample_real = {}
     sample_real_Clean={}
-    if(real_symbols_ratio!=0):
+    if(real_symbols_ratio!=0 or equal_real_symbol_distribution):
         print("\nReading real symbols folders.")
 
         for dir in tqdm(os.listdir(real_symbols_dir)):
@@ -357,7 +387,8 @@ def main(
                                                                                         real_backgrounds_anywhere_ratio=real_backgrounds_anywhere_ratio,
                                                                                         max_overlap=max_overlap,
                                                                                         min_symbol_count=min_symbol_count,
-                                                                                        max_symbol_count=max_symbol_count)
+                                                                                        max_symbol_count=max_symbol_count,
+                                                                                        equal_real_symbol_distribution=equal_real_symbol_distribution)
                                         
                 else:
                     if random.uniform(0,1) < vertical_ratio:
@@ -375,7 +406,8 @@ def main(
                                                                             max_overlap,
                                                                             min_symbol_count, 
                                                                             max_symbol_count,
-                                                                            no_check_overlap)
+                                                                            no_check_overlap,
+                                                                            equal_real_symbol_distribution)
                                     #Conversion to float is needed to use resize
 
                 #img[img<110] = 1
@@ -441,6 +473,7 @@ def parse_opt():
     parser.add_argument('--max_symbol_count', type=int, default = 6, help='Maximum number of symbols to be generated. Defaulted to 6.')
     parser.add_argument('--no_check_overlap', action='store_true', help='Doesnt check overlap between symbols if this argument is given.')
     parser.add_argument('--augment_real_backgrounds', action='store_true', help='Augments the real backgrounds on generation with flipping.')
+    parser.add_argument('--equal_real_symbol_distribution', action='store_true', help='Use equal distribution for real symbol generation.')
 
     opt = parser.parse_args()
     return opt

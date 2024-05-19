@@ -39,7 +39,8 @@ def generate_image_with_real_background(boundingBoxesToRemove,real_symbols_ratio
                    real_backgrounds_anywhere_ratio=0.0,
                    max_overlap=50,
                    min_symbol_count=3,
-                   max_symbol_count=6):
+                   max_symbol_count=6,
+                   equal_real_symbol_distribution=False):
     # canvas = np.full(dim, 255) #Size of final image
     canvas=canvas.copy()
 
@@ -67,27 +68,53 @@ def generate_image_with_real_background(boundingBoxesToRemove,real_symbols_ratio
         img = get_random(label, sample)
         img = resize_by_scale(img, img_scale)
 
-        if random.uniform(0, 1) > real_symbols_ratio or not real_symbols_in_real_backgrounds:
-                img = get_random(label, sample)
+        # This block uses the input distribution for real symbol usage
+        if(not equal_real_symbol_distribution):
+
+            if random.uniform(0, 1) > real_symbols_ratio or not real_symbols_in_real_backgrounds:
+                    img = get_random(label, sample)
+                    from_real_film = False
+                    img = resize_by_scale(img, img_scale*0.8)
+            else:
+                if(label in sample_real_Clean):
+                    #There might not be sample from real film
+                    imgClean,imgDirty = real_symbol_utils.get_random_pair(label, sample_real_Clean,sample_real)
+                    from_real_film = True
+                    imgClean = resize_by_scale(imgClean, 1.8)
+                    imgDirty = resize_by_scale(imgDirty, 1.8)
+
+
+                    # cv2.imshow("imgClean",imgClean)
+                    # cv2.imshow("imgDirty",imgDirty)
+                    # cv2.waitKey(0)
+
+                else:
+                    img = get_random(label, sample)
+                    from_real_film = False
+                    img = resize_by_scale(img, img_scale*0.8)
+
+        # This block uses the normal distribution for real symbol usage
+        else:
+            templateImageCount = len(sample[label])
+            realSymbolCount = 0
+            if(label in sample_real):
+                realSymbolCount = len(sample_real[label])
+            totalImagesCount = templateImageCount + realSymbolCount
+            randomImageNumber = randint(1,totalImagesCount)
+            if(randomImageNumber<=templateImageCount):
+                imgs = sample[label]
+                img = np.copy(imgs[randomImageNumber-1])
                 from_real_film = False
                 img = resize_by_scale(img, img_scale*0.8)
-        else:
-            if(label in sample_real_Clean):
-                #There might not be sample from real film
-                imgClean,imgDirty = real_symbol_utils.get_random_pair(label, sample_real_Clean,sample_real)
+            else:
+                randomRealSymbolIndex = (randomImageNumber - realSymbolCount)-1
+
+                imgsClean = sample_real_Clean[label]
+                imgsDirty = sample_real[label]
+                imgClean,imgDirty = np.copy(imgsClean[randomRealSymbolIndex]),np.copy(imgsDirty[randomRealSymbolIndex])
                 from_real_film = True
                 imgClean = resize_by_scale(imgClean, 1.8)
                 imgDirty = resize_by_scale(imgDirty, 1.8)
-
-
-                # cv2.imshow("imgClean",imgClean)
-                # cv2.imshow("imgDirty",imgDirty)
-                # cv2.waitKey(0)
-
-            else:
-                img = get_random(label, sample)
-                from_real_film = False
-                img = resize_by_scale(img, img_scale*0.8)
         
         point_1 = (0,0)
         point_2 = (0,0)
